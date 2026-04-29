@@ -7,7 +7,8 @@ import {
   SafeAreaView, 
   TouchableOpacity 
 } from 'react-native';
-import { useAppKit, useAppKitAccount } from '@reown/appkit-react-native';
+import { useAppKit } from '@reown/appkit-react-native';
+import { useAccount } from 'wagmi';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,7 @@ export default function ConnectWalletScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const { open } = useAppKit();
-  const { isConnected, isConnecting } = useAppKitAccount();
+  const { isConnected, isConnecting } = useAccount();
   const router = useRouter();
 
   const pulseAnim = useRef(new Animated.Value(1)).current;

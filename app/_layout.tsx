@@ -6,14 +6,13 @@ import {
   bitcoin,
   createAppKit,
   solana,
-  useAppKitAccount,
 } from "@reown/appkit-react-native";
 import { WagmiAdapter } from "@reown/appkit-wagmi-react-native";
 import { SolanaAdapter, PhantomConnector, SolflareConnector } from "@reown/appkit-solana-react-native";
 import { BitcoinAdapter } from "@reown/appkit-bitcoin-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { arbitrum, mainnet, polygon } from "@wagmi/core/chains";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, useAccount } from "wagmi";
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -80,28 +79,14 @@ const appkit = createAppKit({
   enableAnalytics: true, // Optional - defaults to your Cloud configuration
 });
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootContent() {
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
-
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    KHTeka: require('../assets/fonts/KHTeka-Regular.otf'),
-    KHTekaMedium: require('../assets/fonts/KHTeka-Medium.otf'),
-    KHTekaMono: require('../assets/fonts/KHTekaMono-Regular.otf'),
-    Syne_400Regular,
-    Syne_600SemiBold,
-    Syne_700Bold,
-    DMMono_400Regular,
-  });
-
-
-  const { isConnected } = useAppKitAccount();
+  const { isConnected } = useAccount();
 
   useEffect(() => {
-    if (isLoading || !loaded) return;
+    if (isLoading) return;
 
     const inOnboardingGroup = segments[0] === 'onboarding';
     const inConnectWallet = segments[0] === 'connect-wallet';
@@ -115,9 +100,32 @@ export default function RootLayout() {
         router.replace('/(tabs)');
       }
     }
-  }, [hasCompletedOnboarding, isConnected, isLoading, loaded, segments]);
+  }, [hasCompletedOnboarding, isConnected, isLoading, segments]);
 
-  if (!loaded || isLoading) {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="connect-wallet" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="+not-found" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const [loaded] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    KHTeka: require('../assets/fonts/KHTeka-Regular.otf'),
+    KHTekaMedium: require('../assets/fonts/KHTeka-Medium.otf'),
+    KHTekaMono: require('../assets/fonts/KHTekaMono-Regular.otf'),
+    Syne_400Regular,
+    Syne_600SemiBold,
+    Syne_700Bold,
+    DMMono_400Regular,
+  });
+
+  if (!loaded) {
     return null;
   }
 
@@ -126,21 +134,17 @@ export default function RootLayout() {
       <WagmiProvider config={wagmiAdapter.wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <AppKitProvider instance={appkit}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="connect-wallet" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-          {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
-          <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
-            <AppKit />
-          </View>
+            <RootContent />
+            <StatusBar style="auto" />
+            {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
+            <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
+              <AppKit />
+            </View>
           </AppKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </ThemeProvider>
   );
 }
+
 
