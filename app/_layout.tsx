@@ -115,6 +115,8 @@ function RootContent() {
   );
 }
 
+import { PreferencesProvider } from '@/context/PreferencesContext';
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
@@ -122,10 +124,12 @@ export default function RootLayout() {
     KHTeka: require('../assets/fonts/KHTeka-Regular.otf'),
     KHTekaMedium: require('../assets/fonts/KHTeka-Medium.otf'),
     KHTekaMono: require('../assets/fonts/KHTekaMono-Regular.otf'),
-    Syne_400Regular,
-    Syne_600SemiBold,
-    Syne_700Bold,
-    DMMono_400Regular,
+    Syne: Syne_400Regular,
+    'Syne-Regular': Syne_400Regular,
+    'Syne-Medium': Syne_600SemiBold,
+    'Syne-Bold': Syne_700Bold,
+    'DM-Mono-Regular': DMMono_400Regular,
+    'DM-Mono-Medium': DMMono_400Regular, // Use regular if medium not available
   });
 
   if (!loaded) {
@@ -138,9 +142,11 @@ export default function RootLayout() {
         <WagmiProvider config={wagmiAdapter.wagmiConfig}>
           <QueryClientProvider client={queryClient}>
             <AppKitProvider instance={appkit}>
-              <ToastProvider>
-                <RootContent />
-              </ToastProvider>
+              <PreferencesProvider>
+                <ToastProvider>
+                  <RootContent />
+                </ToastProvider>
+              </PreferencesProvider>
               <StatusBar style="auto" />
               {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
               <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
