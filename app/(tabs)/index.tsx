@@ -20,7 +20,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { callGemini, getSystemPrompt, parseIntent, Message as GeminiMessage } from '@/hooks/useGeminiChat';
+import { callGroq, getSystemPrompt, parseIntent, Message as GroqMessage } from '@/hooks/useGroqChat';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { usePreferences } from '@/hooks/usePreferences';
 import { API_URL } from '@/constants/Config';
@@ -58,8 +58,10 @@ export default function ChatScreen() {
   useEffect(() => {
     if (paramSessionId) {
       loadSession(paramSessionId);
-    } else if (address && !sessionId) {
-      createNewSession();
+    } else if (address) {
+      if (!sessionId) createNewSession();
+    } else {
+      setSessionId("guest-session");
     }
   }, [paramSessionId, address]);
 
@@ -78,6 +80,7 @@ export default function ChatScreen() {
       }
     } catch (e) {
       console.error("Failed to create session:", e);
+      setSessionId("demo-session"); 
     }
   };
 
@@ -104,7 +107,7 @@ export default function ChatScreen() {
 
   const handleSend = async (text: string) => {
     const messageToSend = text || inputText;
-    if (!messageToSend.trim() || !address || !sessionId || isLoading) return;
+    if (!messageToSend.trim() || !sessionId || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -121,35 +124,37 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
-      await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: address,
-          role: 'user',
-          content: messageToSend
-        })
-      });
-
-      if (messages.length === 0) {
-        await fetch(`${API_URL}/chat/sessions/${sessionId}`, {
-          method: 'PATCH',
+      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
+        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: messageToSend.slice(0, 50) })
+          body: JSON.stringify({
+            walletAddress: address,
+            role: 'user',
+            content: messageToSend
+          })
         });
+
+        if (messages.length === 0) {
+          await fetch(`${API_URL}/chat/sessions/${sessionId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: messageToSend.slice(0, 50) })
+          });
+        }
       }
 
-      const geminiMessages: GeminiMessage[] = messages
+      const groqMessages: GroqMessage[] = messages
         .slice()
         .reverse()
         .map(m => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }]
+          role: m.role as 'user' | 'assistant',
+          content: m.content
         }));
-      geminiMessages.push({ role: 'user', parts: [{ text: messageToSend }] });
+      groqMessages.push({ role: 'user', content: messageToSend });
 
-      const systemPrompt = getSystemPrompt(address, preferences);
-      const rawResponse = await callGemini(geminiMessages, systemPrompt);
+      const systemPrompt = getSystemPrompt(address || '0x...', preferences);
+      const rawResponse = await callGroq(groqMessages, systemPrompt);
       const { text: cleanText, intent } = parseIntent(rawResponse);
 
       const assistantMessage: ChatMessage = {
@@ -162,17 +167,19 @@ export default function ChatScreen() {
         status: 'sent'
       };
 
-      await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: address,
-          role: 'assistant',
-          content: cleanText,
-          intent: intent,
-          intentPayload: intent?.payload || null
-        })
-      });
+      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
+        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: address,
+            role: 'assistant',
+            content: cleanText,
+            intent: intent,
+            intentPayload: intent?.payload || null
+          })
+        });
+      }
 
       setMessages(prev => [assistantMessage, ...prev]);
 
@@ -182,6 +189,17 @@ export default function ChatScreen() {
 
     } catch (e) {
       console.error("Chat error:", e);
+      setMessages(prev => [
+        {
+          id: 'err-' + Date.now(),
+          role: 'assistant',
+          content: "Sorry, I encountered an error. Please check your connection or Groq API key.",
+          intent: null,
+          intentPayload: null,
+          timestamp: new Date()
+        },
+        ...prev
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -290,11 +308,13 @@ export default function ChatScreen() {
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.micButton, { backgroundColor: theme.primary }]}
+                style={[styles.micButton, { backgroundColor: theme.primary }, (isLoading || !inputText.trim()) && { opacity: 0.5 }]}
                 onPress={() => handleSend(inputText)}
                 disabled={isLoading || !inputText.trim()}
               >
-                {isLoading ? (
+                {!address ? (
+                   <Ionicons name="wallet-outline" size={20} color="#fff" />
+                ) : isLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Ionicons name={inputText.trim() ? "arrow-up" : "mic"} size={20} color="#fff" />

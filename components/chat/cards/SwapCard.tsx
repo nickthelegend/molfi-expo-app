@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { useUniswapSwap } from '@/hooks/useUniswapSwap';
+import { useUniswapSwap, formatQuoteAmount } from '@/hooks/useUniswapSwap';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -28,7 +28,18 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
     'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eb48',
     'ETH': 'ETH',
     'WETH': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+  },
+  16600: {
+    'USDC': '0x...', // TODO: Add 0G token addresses
+    'ETH': 'ETH',
   }
+};
+
+const CHAIN_NAMES: Record<number, string> = {
+  1: 'Ethereum',
+  8453: 'Base',
+  16600: '0G Galileo',
+  42161: 'Arbitrum',
 };
 
 export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
@@ -40,30 +51,30 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
   const [status, setStatus] = useState<'idle' | 'approving' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  const fetchQuote = async () => {
+  const fetchQuote = useCallback(async () => {
     setIsLoading(true);
-    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.fromToken];
-    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.toToken];
+    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.fromToken] || payload.fromToken;
+    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.toToken] || payload.toToken;
     
-    if (!tokenIn || !tokenOut) {
+    try {
+      const data = await getQuote({
+        tokenIn,
+        tokenOut,
+        amount: payload.amount,
+        chainId: payload.chainId,
+      });
+      
+      setQuote(data);
+    } catch (e) {
+      console.error("Fetch quote error:", e);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const data = await getQuote({
-      tokenIn,
-      tokenOut,
-      amount: payload.amount,
-      chainId: payload.chainId,
-    });
-    
-    setQuote(data);
-    setIsLoading(false);
-  };
+  }, [getQuote, payload]);
 
   useEffect(() => {
     fetchQuote();
-  }, []);
+  }, [fetchQuote]);
 
   const handleSwap = async () => {
     if (!quote) return;
@@ -79,25 +90,28 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
 
   if (payload.isMultiSwap) {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>⚡ MULTI-SWAP PREVIEW</Text>
-          <Text style={styles.headerLogo}>Molfi</Text>
+          <Text style={[styles.headerTitle, { color: theme.textMuted }]}>⚡ MULTI-SWAP PREVIEW</Text>
+          <Text style={[styles.headerLogo, { color: theme.primary }]}>Molfi</Text>
         </View>
-        <Text style={styles.subHeader}>Splitting {payload.amount} {payload.fromToken} into {payload.swaps?.length} tokens</Text>
-        {/* Simplified multi-swap view */}
+        <Text style={[styles.subHeader, { color: theme.text }]}>Splitting {payload.amount} {payload.fromToken} into {payload.swaps?.length} tokens</Text>
         {payload.swaps?.map((s, i) => (
           <View key={i} style={styles.multiRow}>
-             <Text style={styles.multiText}>{s.amount} {s.fromToken} → {s.toToken}</Text>
-             <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+             <Text style={[styles.multiText, { color: theme.text }]}>{s.amount} {s.fromToken} → {s.toToken}</Text>
+             <Ionicons name="checkmark-circle" size={16} color={theme.success} />
           </View>
         ))}
-        <TouchableOpacity style={styles.primaryButton} disabled>
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: 0.5 }]} disabled>
           <Text style={styles.primaryButtonText}>Sign All ({payload.swaps?.length} txns)</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  const outputAmount = quote ? formatQuoteAmount(quote) : '?';
+  const routing = quote?.routing || 'CLASSIC';
+  const gasUSD = quote?.quote?.gasFeeUSD ? `~$${quote.quote.gasFeeUSD}` : routing.includes('DUTCH') ? '$0.00 (gasless)' : '-';
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -116,34 +130,33 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
             <ActivityIndicator size="small" color={theme.primary} />
           ) : (
             <Text style={[styles.tokenAmount, { color: theme.text }]}>
-              ~{quote ? (Number(quote.quote.quote) / 10**18).toFixed(4) : '?'} {payload.toToken}
+              ~{outputAmount} {payload.toToken}
             </Text>
           )}
         </View>
       </View>
 
       <View style={styles.detailsContainer}>
-        <DetailRow label="Rate" value={quote ? `1 ${payload.toToken} = $...` : '-'} theme={theme} />
-        <DetailRow label="Network" value={payload.chainId === 8453 ? "Base" : "Ethereum"} theme={theme} />
-        <DetailRow label="Route" value="UniswapX (Gasless)" theme={theme} />
-        <DetailRow label="Gas" value="~$0.00 (gasless)" theme={theme} />
+        <DetailRow label="Network" value={CHAIN_NAMES[payload.chainId] || `Chain ${payload.chainId}`} theme={theme} />
+        <DetailRow label="Route" value={routing === 'DUTCH_V2' ? "UniswapX (Gasless)" : routing} theme={theme} />
+        <DetailRow label="Gas" value={gasUSD} theme={theme} />
         <DetailRow label="Slippage" value="0.5%" theme={theme} />
       </View>
 
       {status === 'confirmed' ? (
-        <View style={[styles.successBox, { borderColor: theme.success }]}>
+        <View style={[styles.successBox, { borderColor: theme.success, backgroundColor: 'rgba(0, 255, 148, 0.05)' }]}>
           <Text style={[styles.successText, { color: theme.success }]}>Swap Executed ✓</Text>
-          <Text style={[styles.txLink, { color: theme.success }]}>View Transaction</Text>
+          <Text style={[styles.txLink, { color: theme.success }]}>TX: {txHash?.slice(0, 10)}...</Text>
         </View>
       ) : (
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border }]} onPress={fetchQuote} disabled={isLoading}>
+          <TouchableOpacity style={[styles.secondaryButton, { borderColor: theme.border }]} onPress={fetchQuote} disabled={isLoading || isSwapping}>
             <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Refresh Quote</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.primaryButton, { backgroundColor: theme.primary }, (!quote || isSwapping) && styles.disabledButton]} 
+            style={[styles.primaryButton, { backgroundColor: theme.primary }, (!quote || isSwapping || isLoading) && styles.disabledButton]} 
             onPress={handleSwap}
-            disabled={!quote || isSwapping}
+            disabled={!quote || isSwapping || isLoading}
           >
             {isSwapping ? (
               <ActivityIndicator color="#FFF" />
@@ -154,7 +167,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
         </View>
       )}
 
-      {status === 'error' && <Text style={[styles.errorText, { color: theme.error }]}>Failed - {swapError || 'Unknown error'}</Text>}
+      {status === 'error' && <Text style={[styles.errorText, { color: theme.error }]}>Failed - {swapError || 'Check wallet balance'}</Text>}
     </View>
   );
 };
@@ -168,12 +181,10 @@ const DetailRow = ({ label, value, theme }: { label: string; value: string; them
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(42, 42, 42, 0.3)',
     overflow: 'hidden',
   },
   header: {
@@ -183,18 +194,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTitle: {
-    color: Colors.textMuted,
     fontFamily: 'Syne-Bold',
     fontSize: 11,
     letterSpacing: 1.5,
   },
   headerLogo: {
-    color: Colors.primary,
     fontFamily: 'Syne-Bold',
     fontSize: 12,
   },
   subHeader: {
-    color: Colors.text,
     fontFamily: 'Syne-Medium',
     fontSize: 14,
     marginBottom: 12,
@@ -211,7 +219,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tokenAmount: {
-    color: Colors.text,
     fontFamily: 'DM-Mono-Medium',
     fontSize: 18,
   },
@@ -227,12 +234,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   detailLabel: {
-    color: Colors.textMuted,
     fontFamily: 'Syne-Regular',
     fontSize: 13,
   },
   detailValue: {
-    color: Colors.text,
     fontFamily: 'DM-Mono-Regular',
     fontSize: 13,
   },
@@ -242,7 +247,6 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1.5,
-    backgroundColor: Colors.primary,
     height: 48,
     borderRadius: 12,
     justifyContent: 'center',
@@ -250,9 +254,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.border,
     height: 48,
     borderRadius: 12,
     justifyContent: 'center',
@@ -264,7 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   secondaryButtonText: {
-    color: Colors.text,
     fontFamily: 'Syne-Medium',
     fontSize: 14,
   },
@@ -272,27 +273,22 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   successBox: {
-    backgroundColor: 'rgba(0, 255, 148, 0.1)',
     borderWidth: 1,
-    borderColor: Colors.success,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
   },
   successText: {
-    color: Colors.success,
     fontFamily: 'Syne-Bold',
     fontSize: 15,
   },
   txLink: {
-    color: Colors.success,
     fontFamily: 'Syne-Medium',
     fontSize: 12,
     marginTop: 4,
     textDecorationLine: 'underline',
   },
   errorText: {
-    color: Colors.error,
     fontFamily: 'Syne-Regular',
     fontSize: 12,
     marginTop: 8,
@@ -307,7 +303,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   multiText: {
-    color: Colors.text,
     fontFamily: 'DM-Mono-Medium',
     fontSize: 14,
   }

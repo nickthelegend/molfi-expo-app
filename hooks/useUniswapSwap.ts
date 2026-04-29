@@ -1,12 +1,18 @@
 import { useState, useCallback } from 'react';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { useSendTransaction, useSignTypedData } from 'wagmi';
-import { Address, parseUnits } from 'viem';
+import { Address, parseUnits, isAddress, isHex } from 'viem';
 
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
-
-// Replace with your actual API key from developers.uniswap.org
 const UNISWAP_API_KEY = 'VhS0REuDP3oJRt7kOcpB_LN_v0oyez8oerF2ogocHZU'; 
+
+export type QuoteParams = {
+  tokenIn: string;
+  tokenOut: string;
+  amount: string;
+  chainId: number;
+  type?: 'EXACT_INPUT' | 'EXACT_OUTPUT';
+};
 
 export function useUniswapSwap() {
   const { address } = useAppKitAccount();
@@ -16,13 +22,7 @@ export function useUniswapSwap() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getQuote = useCallback(async (params: {
-    tokenIn: string;
-    tokenOut: string;
-    amount: string;
-    chainId: number;
-    type?: 'EXACT_INPUT' | 'EXACT_OUTPUT';
-  }) => {
+  const getQuote = useCallback(async (params: QuoteParams) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -61,9 +61,33 @@ export function useUniswapSwap() {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Get swap transaction from API
+      const isUniswapX = ['DUTCH_V2', 'DUTCH_V3', 'PRIORITY'].includes(quoteResponse.routing);
+      let signature: string | undefined;
+
+      // 1. Handle Permit2 Signing if needed
+      if (quoteResponse.permitData) {
+        signature = await signTypedDataAsync({
+          domain: quoteResponse.permitData.domain,
+          types: quoteResponse.permitData.types,
+          primaryType: Object.keys(quoteResponse.permitData.types).filter(t => t !== 'EIP712Domain')[0],
+          message: quoteResponse.permitData.values,
+        } as any);
+      }
+
+      // 2. Prepare Swap Request
       const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
-      
+      const swapRequest: any = { ...cleanQuote };
+
+      if (isUniswapX) {
+        if (signature) swapRequest.signature = signature;
+        // UniswapX MUST NOT include permitData in the body
+      } else {
+        if (signature && permitData) {
+          swapRequest.signature = signature;
+          swapRequest.permitData = permitData;
+        }
+      }
+
       const swapResponse = await fetch(`${TRADING_API_BASE}/swap`, {
         method: 'POST',
         headers: {
@@ -71,10 +95,7 @@ export function useUniswapSwap() {
           'x-api-key': UNISWAP_API_KEY,
           'x-universal-router-version': '2.0',
         },
-        body: JSON.stringify({
-          ...cleanQuote,
-          // signature will be added here if using Permit2
-        }),
+        body: JSON.stringify(swapRequest),
       });
 
       const swapData = await swapResponse.json();
@@ -82,22 +103,24 @@ export function useUniswapSwap() {
 
       const { swap } = swapData;
 
-      // 2. Send transaction
+      // 3. Send transaction
       const hash = await sendTransactionAsync({
         to: swap.to as Address,
         data: swap.data as `0x${string}`,
         value: BigInt(swap.value || '0'),
         chainId: swap.chainId,
+        gas: swap.gasLimit ? BigInt(swap.gasLimit) : undefined,
       });
 
       return hash;
     } catch (err: any) {
+      console.error("Swap execution error:", err);
       setError(err.message);
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [sendTransactionAsync]);
+  }, [sendTransactionAsync, signTypedDataAsync]);
 
   return {
     getQuote,
@@ -105,4 +128,17 @@ export function useUniswapSwap() {
     isLoading,
     error,
   };
+}
+
+export function formatQuoteAmount(quoteResponse: any, decimals: number = 18): string {
+  if (!quoteResponse) return '0';
+  
+  const isUniswapX = ['DUTCH_V2', 'DUTCH_V3', 'PRIORITY'].includes(quoteResponse.routing);
+  
+  if (isUniswapX) {
+    const firstOutput = quoteResponse.quote.orderInfo.outputs[0];
+    return (Number(firstOutput.startAmount) / 10**decimals).toFixed(6);
+  }
+  
+  return (Number(quoteResponse.quote.output.amount) / 10**decimals).toFixed(6);
 }

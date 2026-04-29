@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { Intent } from '@/hooks/useGeminiChat';
+import { Intent } from '@/hooks/useGroqChat';
 import { SwapCard } from './cards/SwapCard';
 import { SendCard } from './cards/SendCard';
 import { CreateAgentCard } from './cards/CreateAgentCard';

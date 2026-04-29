@@ -1,6 +1,6 @@
-import { GEMINI_API_KEY } from '@/constants/Config';
+import { GROQ_API_KEY } from '@/constants/Config';
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export type IntentType = 'SWAP' | 'SEND' | 'CREATE_AGENT' | 'PORTFOLIO_VIEW' | 'PRICE_CHECK' | 'TX_HISTORY' | 'PREFERENCE_UPDATE' | 'NONE';
 
@@ -10,8 +10,8 @@ export interface Intent {
 }
 
 export interface Message {
-  role: 'user' | 'model';
-  parts: [{ text: string }];
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
 export const getSystemPrompt = (walletAddress: string, preferences: any) => `
@@ -98,32 +98,38 @@ For cross-chain: set routingPreference to "CROSS_CHAIN".
 Current date: ${new Date().toISOString()}
 User wallet: ${walletAddress}
 User preferences: ${JSON.stringify(preferences)}
+
+IMPORTANT: 0G (Chain ID 16600 for Galileo Testnet) is the DEFAULT chain for all actions unless the user specifies otherwise. Always prioritize 0G for swaps and sends.
 `;
 
-export async function callGemini(
+export async function callGroq(
   messages: Message[],
   systemPrompt: string
 ): Promise<string> {
-  const response = await fetch(GEMINI_URL, {
+  const response = await fetch(GROQ_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_API_KEY}`
+    },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: messages,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2048,
-      }
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: 0.7,
+      max_tokens: 2048,
     })
   });
   
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Gemini error: ${response.status} - ${errorBody}`);
+    throw new Error(`Groq error: ${response.status} - ${errorBody}`);
   }
   
   const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+  return data.choices[0].message.content;
 }
 
 export function parseIntent(rawResponse: string): { text: string; intent: Intent | null } {
