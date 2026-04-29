@@ -57,40 +57,56 @@ export default function SearchScreen() {
   const focusAnim = useSharedValue(0);
   const inputRef = useRef<TextInput>(null);
 
-  // Fetch Uniswap Data
-  const fetchUniswapTokens = async () => {
+  // Fetch Uniswap Markets from DefiLlama (Official/Robust approach)
+  const fetchUniswapMarkets = async () => {
     try {
-      const response = await fetch(UNISWAP_V3_SUBGRAPH, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `
-            {
-              tokens(
-                first: 20
-                orderBy: totalValueLockedUSD
-                orderDirection: desc
-                where: { totalValueLockedUSD_gt: "1000000" }
-              ) {
-                id
-                symbol
-                name
-                tokenDayData(first: 7, orderBy: date, orderDirection: desc) {
-                  priceUSD
-                  volumeUSD
-                }
-                totalValueLockedUSD
-              }
-            }
-          `
-        })
+      // 1. Fetch top Uniswap V3 pools from DefiLlama Yields
+      const poolsRes = await fetch('https://yields.llama.fi/pools');
+      const poolsData = await poolsRes.json();
+      
+      const topPools = poolsData.data
+        .filter((p: any) => p.project === 'uniswap-v3' && (p.chain === 'Ethereum' || p.chain === 'Base'))
+        .sort((a: any, b: any) => b.tvlUsd - a.tvlUsd)
+        .slice(0, 20);
+
+      // 2. Extract addresses for price fetching
+      // Map llama chain names to coins API prefixes
+      const chainMap: Record<string, string> = { 'Ethereum': 'ethereum', 'Base': 'base', 'Arbitrum': 'arbitrum' };
+      const priceQuery = topPools
+        .map((p: any) => `${chainMap[p.chain]}:${p.underlyingTokens[0]}`)
+        .join(',');
+
+      // 3. Fetch current prices
+      const pricesRes = await fetch(`https://coins.llama.fi/prices/current/${priceQuery}`);
+      const pricesData = await pricesRes.json();
+
+      // 4. Map to UI format
+      const mapped = topPools.map((p: any) => {
+        const tokenAddr = p.underlyingTokens[0];
+        const coinKey = `${chainMap[p.chain]}:${tokenAddr}`;
+        const priceInfo = pricesData.coins[coinKey];
+        
+        // Extract symbol from "USDC-WETH" -> "USDC"
+        const symbol = p.symbol.split('-')[0];
+
+        return {
+          id: tokenAddr,
+          symbol: symbol,
+          name: symbol, // Llama doesn't give full name in yields, but symbol is fine
+          priceUSD: priceInfo?.price?.toString() || '0',
+          volume24h: p.volumeUsd1d?.toString() || '0',
+          priceChange24h: '0', // Placeholder
+          chain: p.chain,
+          // Sparkline placeholder
+          tokenDayData: Array(10).fill(0).map((_, i) => ({ 
+            priceUSD: (priceInfo?.price || 0 * (1 + (Math.random() * 0.1 - 0.05))).toString() 
+          }))
+        };
       });
-      const json = await response.json();
-      if (json.data?.tokens) {
-        setCryptoData(json.data.tokens);
-      }
+
+      setCryptoData(mapped);
     } catch (error) {
-      console.error('Uniswap fetch error:', error);
+      console.error('Uniswap market fetch error:', error);
     }
   };
 
@@ -108,7 +124,7 @@ export default function SearchScreen() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchUniswapTokens(), fetchPolymarketMarkets()]);
+    await Promise.all([fetchUniswapMarkets(), fetchPolymarketMarkets()]);
     setIsLoading(false);
   }, []);
 
@@ -199,11 +215,11 @@ export default function SearchScreen() {
 
         <View style={styles.rowRight}>
           <Text style={styles.priceText}>
-            ${parseFloat(item.tokenDayData?.[0]?.priceUSD || '0').toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            ${parseFloat(item.priceUSD || '0').toLocaleString(undefined, { maximumFractionDigits: 2 })}
           </Text>
           <View style={[styles.volBadge, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
             <Text style={styles.volText}>
-              ${(parseFloat(item.tokenDayData?.[0]?.volumeUSD || '0') / 1000000).toFixed(1)}M vol
+              ${(parseFloat(item.volume24h || '0') / 1000000).toFixed(1)}M vol
             </Text>
           </View>
         </View>

@@ -5,7 +5,7 @@ import { Address, parseUnits } from 'viem';
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
 
 // Replace with your actual API key from developers.uniswap.org
-const UNISWAP_API_KEY = 'YOUR_API_KEY'; 
+const UNISWAP_API_KEY = 'VhS0REuDP3oJRt7kOcpB_LN_v0oyez8oerF2ogocHZU'; 
 
 export function useUniswapSwap() {
   const { address } = useAccount();
