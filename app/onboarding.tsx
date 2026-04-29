@@ -37,12 +37,12 @@ export default function OnboardingScreen() {
 
   const handleComplete = async () => {
     await completeOnboarding();
-    router.replace('/dashboard');
+    router.replace('/(tabs)');
   };
 
   const handleSkip = async () => {
     await skipOnboarding();
-    router.replace('/dashboard');
+    router.replace('/(tabs)');
   };
 
   return (
