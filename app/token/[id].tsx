@@ -182,7 +182,10 @@ export default function TokenDetail() {
             <TouchableOpacity style={styles.socialButton}>
               <Ionicons name="logo-twitter" size={20} color="#A0A0A0" />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.getButton, { backgroundColor: theme.primary }]}>
+            <TouchableOpacity 
+              style={[styles.getButton, { backgroundColor: theme.primary }]}
+              onPress={() => router.push({ pathname: '/token/swap', params: { tokenId: id } })}
+            >
               <Text style={styles.getButtonText}>Trade</Text>
             </TouchableOpacity>
           </View>
