@@ -18,12 +18,12 @@ import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageBubble } from './components/chat/MessageBubble';
-import { TypingIndicator } from './components/chat/TypingIndicator';
-import { callGroq, getSystemPrompt, parseIntent, Message as GroqMessage } from './hooks/useGroqChat';
+import { MessageBubble } from '@/components/chat/MessageBubble';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { callGroq, getSystemPrompt, parseIntent, Message as GroqMessage } from '@/hooks/useGroqChat';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
-import { usePreferences } from './hooks/usePreferences';
-import { API_URL } from './constants/Config';
+import { usePreferences } from '@/hooks/usePreferences';
+import { API_URL } from '@/constants/Config';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -251,7 +251,7 @@ export default function ChatScreen() {
               { id: 10, name: 'Op', logo: 'https://icons.llama.fi/chains/rsz_optimism.jpg' },
               { id: 43114, name: 'Avax', logo: 'https://icons.llama.fi/chains/rsz_avalanche.jpg' },
             ].map((chain) => {
-              const isSelected = preferences.defaultChainId === chain.id;
+              const isSelected = preferences.defaultChain === chain.id;
               return (
                 <TouchableOpacity 
                   key={chain.id}
@@ -259,7 +259,7 @@ export default function ChatScreen() {
                     styles.chainChip, 
                     { backgroundColor: isSelected ? theme.primary : theme.card, borderColor: isSelected ? theme.primary : theme.border }
                   ]}
-                  onPress={() => updatePreferences({ defaultChainId: chain.id })}
+                  onPress={() => updatePreferences({ defaultChain: chain.id })}
                 >
                   <Image source={{ uri: chain.logo }} style={styles.chainLogo} />
                   <Text style={[styles.chainName, { color: isSelected ? '#FFF' : theme.text }]}>{chain.name}</Text>
