@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     height: 36,
   },
   gmText: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Syne-Regular',
     fontSize: 13,
     color: 'rgba(255,255,255,0.4)',
   },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionLabel: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Syne-Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
   },
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   agentStatus: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Syne-Regular',
     fontSize: 10,
     color: '#00C896',
   },
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createAgentText: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Syne-Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.3)',
   },
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   notifTime: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Syne-Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.3)',
   },
