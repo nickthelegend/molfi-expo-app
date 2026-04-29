@@ -73,7 +73,7 @@ export default function TokenDetail() {
             <TouchableOpacity style={styles.socialButton}>
               <Ionicons name="logo-twitter" size={20} color="#A0A0A0" />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.getButton, { backgroundColor: '#FF3B30' }]}>
+            <TouchableOpacity style={[styles.getButton, { backgroundColor: theme.primary }]}>
               <Text style={styles.getButtonText}>Get</Text>
             </TouchableOpacity>
           </View>
