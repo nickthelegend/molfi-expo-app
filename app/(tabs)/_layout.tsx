@@ -73,29 +73,22 @@ export default function TabLayout() {
         tabBarInactiveTintColor: INACTIVE_COLOR,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 24 + insets.bottom / 2,
-          marginHorizontal: 16,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)', // Added semi-transparent black
-          borderTopWidth: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 72 + insets.bottom, // Increased height to accommodate more padding
+          backgroundColor: '#111111',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 255, 255, 0.08)',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
           elevation: 20,
-          shadowColor: theme.primary,
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.1,
-          shadowRadius: 20,
-          paddingBottom: 0,
-          borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-          overflow: 'hidden',
+          paddingBottom: insets.bottom,
+          paddingTop: 8, // Added more padding to the top
         },
-        tabBarBackground: () => (
-          <BlurView
-            intensity={100} // Increased intensity
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          />
-        ),
+        tabBarBackground: undefined, // Removed BlurView
       }}
     >
       <Tabs.Screen
