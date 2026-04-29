@@ -1,5 +1,6 @@
 import 'text-encoding';
 import "@walletconnect/react-native-compat";
+import { ToastProvider } from '@/components/ui/Toast';
 import {
   AppKit,
   AppKitProvider,
@@ -128,7 +129,9 @@ export default function RootLayout() {
       <WagmiProvider config={wagmiAdapter.wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           <AppKitProvider instance={appkit}>
-            <RootContent />
+            <ToastProvider>
+              <RootContent />
+            </ToastProvider>
             <StatusBar style="auto" />
             {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
             <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
