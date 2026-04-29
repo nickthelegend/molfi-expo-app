@@ -3,15 +3,11 @@ import "@walletconnect/react-native-compat";
 import {
   AppKit,
   AppKitProvider,
-  bitcoin,
   createAppKit,
-  solana,
 } from "@reown/appkit-react-native";
 import { WagmiAdapter } from "@reown/appkit-wagmi-react-native";
-import { SolanaAdapter, PhantomConnector, SolflareConnector } from "@reown/appkit-solana-react-native";
-import { BitcoinAdapter } from "@reown/appkit-bitcoin-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { arbitrum, mainnet, polygon } from "@wagmi/core/chains";
+import { arbitrum, mainnet, polygon, zeroGMainnet, zeroGTestnet, zeroGGalileoTestnet } from "@wagmi/core/chains";
 import { WagmiProvider, useAccount } from "wagmi";
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -40,43 +36,37 @@ const clipboardClient = {
 const queryClient = new QueryClient();
 
 // 1. Get projectId at https://dashboard.reown.com
-const projectId = "22260d6680223859f9b07dadfafce02d"; 
-
-
+const projectId = "22260d6680223859f9b07dadfafce02d";
 
 // 2. Create config
 const metadata = {
   name: "Molfi",
   description: "AI-Native Crypto Trading Ecosystem",
   url: "https://molfi.app",
-  icons: ["https://avatars.githubusercontent.com/u/179229932"], // Update with Molfi icon URL later
+  icons: ["https://avatars.githubusercontent.com/u/179229932"],
   redirect: {
     native: "molfi://",
     universal: "molfi.app",
   },
 };
 
-const networks = [mainnet, polygon, arbitrum];
+const networks = [zeroGGalileoTestnet, zeroGMainnet, polygon];
 
 const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks: networks as any,
+  networks,
 });
-
-const solanaAdapter = new SolanaAdapter();
-const bitcoinAdapter = new BitcoinAdapter();
 
 // 3. Create modal
 const appkit = createAppKit({
   projectId,
-  networks: [...networks, solana, bitcoin],
-  adapters: [wagmiAdapter, solanaAdapter, bitcoinAdapter],
-  extraConnectors: [new PhantomConnector(), new SolflareConnector()],
+  networks,
+  adapters: [wagmiAdapter],
   metadata,
   clipboardClient,
   storage,
-  defaultNetwork: mainnet, // Optional
-  enableAnalytics: true, // Optional - defaults to your Cloud configuration
+  defaultNetwork: zeroGGalileoTestnet,
+  enableAnalytics: true,
 });
 
 function RootContent() {
@@ -88,7 +78,7 @@ function RootContent() {
   useEffect(() => {
     // Wait for onboarding state to load
     if (isLoading) return;
-    
+
     // Wait for wallet state to resolve if it's currently (re)connecting
     if (status === 'connecting' || status === 'reconnecting') return;
 

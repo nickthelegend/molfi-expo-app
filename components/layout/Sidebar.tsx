@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useAccount } from 'wagmi';
+import { useAppKit } from '@reown/appkit-react-native';
 
 interface SidebarItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -64,6 +65,7 @@ export function Sidebar({ activeRoute, onNavigate }: SidebarProps) {
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const { address } = useAccount();
+  const { open } = useAppKit();
 
   const avatarUrl = address 
     ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${address}`
@@ -126,7 +128,7 @@ export function Sidebar({ activeRoute, onNavigate }: SidebarProps) {
       </View>
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.avatarContainer}>
+        <TouchableOpacity style={styles.avatarContainer} onPress={() => open()}>
           <Image 
             source={{ uri: avatarUrl }} 
             style={styles.avatarImage}
