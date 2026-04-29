@@ -6,6 +6,8 @@ import { Address, parseUnits, isAddress, isHex } from 'viem';
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
 const UNISWAP_API_KEY = 'VhS0REuDP3oJRt7kOcpB_LN_v0oyez8oerF2ogocHZU'; 
 
+const SUPPORTED_CHAINS = [1, 10, 56, 137, 8453, 42161, 43114, 11155111, 11155420];
+
 export type QuoteParams = {
   tokenIn: string;
   tokenOut: string;
@@ -23,6 +25,10 @@ export function useUniswapSwap() {
   const [error, setError] = useState<string | null>(null);
 
   const getQuote = useCallback(async (params: QuoteParams) => {
+    if (!SUPPORTED_CHAINS.includes(params.chainId)) {
+      setError(`Chain ${params.chainId} is not supported by Uniswap API`);
+      return null;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -80,7 +86,6 @@ export function useUniswapSwap() {
 
       if (isUniswapX) {
         if (signature) swapRequest.signature = signature;
-        // UniswapX MUST NOT include permitData in the body
       } else {
         if (signature && permitData) {
           swapRequest.signature = signature;
@@ -137,8 +142,10 @@ export function formatQuoteAmount(quoteResponse: any, decimals: number = 18): st
   
   if (isUniswapX) {
     const firstOutput = quoteResponse.quote.orderInfo.outputs[0];
+    if (!firstOutput) return '0';
     return (Number(firstOutput.startAmount) / 10**decimals).toFixed(6);
   }
   
+  if (!quoteResponse.quote?.output?.amount) return '0';
   return (Number(quoteResponse.quote.output.amount) / 10**decimals).toFixed(6);
 }
