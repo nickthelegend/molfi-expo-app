@@ -1,12 +1,17 @@
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import GorhomBottomSheet, { 
-  BottomSheetView, 
-  BottomSheetBackdrop,
-  BottomSheetBackdropProps 
-} from '@gorhom/bottom-sheet';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import React, { useEffect, useRef } from 'react';
+import { 
+  View, 
+  StyleSheet, 
+  Text, 
+  Modal, 
+  Animated, 
+  Dimensions, 
+  TouchableOpacity, 
+  TouchableWithoutFeedback 
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const { height } = Dimensions.get('window');
 
 interface BottomSheetProps {
   isVisible: boolean;
@@ -17,76 +22,110 @@ interface BottomSheetProps {
 
 export function useBottomSheet() {
   const [isVisible, setIsVisible] = React.useState(false);
-
-  const open = useCallback(() => setIsVisible(true), []);
-  const close = useCallback(() => setIsVisible(false), []);
-
-  return {
-    isVisible,
-    open,
-    close,
-  };
+  const open = () => setIsVisible(true);
+  const close = () => setIsVisible(false);
+  return { isVisible, open, close };
 }
 
 export function BottomSheet({
   isVisible,
   onClose,
-  snapPoints = ['25%', '50%', '90%'],
   children
 }: BottomSheetProps) {
-  const bottomSheetRef = useRef<GorhomBottomSheet>(null);
-  const colorScheme = useColorScheme() ?? 'dark';
-  const theme = Colors[colorScheme];
-
-  const resolvedSnapPoints = useMemo(() => snapPoints, [snapPoints]);
+  const translateY = useRef(new Animated.Value(height)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isVisible) {
-      bottomSheetRef.current?.expand();
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      bottomSheetRef.current?.close();
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: height,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }, [isVisible]);
 
-  const handleSheetChanges = useCallback((index: number) => {
-    if (index === -1) {
-      onClose();
-    }
-  }, [onClose]);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsAt={-1}
-        appearsAt={0}
-        opacity={0.5}
-      />
-    ),
-    []
-  );
-
   return (
-    <GorhomBottomSheet
-      ref={bottomSheetRef}
-      index={isVisible ? 0 : -1}
-      snapPoints={resolvedSnapPoints}
-      onChange={handleSheetChanges}
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: '#1d1d1d' }}
-      handleIndicatorStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+    <Modal
+      transparent
+      visible={isVisible}
+      animationType="none"
+      onRequestClose={onClose}
     >
-      <BottomSheetView style={styles.contentContainer}>
-        {children}
-      </BottomSheetView>
-    </GorhomBottomSheet>
+      <View style={styles.overlay}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[styles.backdrop, { opacity }]} />
+        </TouchableWithoutFeedback>
+        
+        <Animated.View 
+          style={[
+            styles.sheet, 
+            { transform: [{ translateY }] }
+          ]}
+        >
+          <View style={styles.handleContainer}>
+            <View style={styles.handle} />
+          </View>
+          <View style={styles.content}>
+            {children}
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  contentContainer: {
+  overlay: {
     flex: 1,
-    padding: 24,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  sheet: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    minHeight: height * 0.4,
+    maxHeight: height * 0.85,
+    paddingBottom: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
   },
 });
