@@ -6,13 +6,13 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
@@ -107,7 +107,15 @@ export default function ChatScreen() {
 
   const handleSend = async (text: string) => {
     const messageToSend = text || inputText;
-    if (!messageToSend.trim() || !sessionId || isLoading) return;
+    console.log('[Chat] handleSend called with:', messageToSend);
+    
+    // Fallback if sessionId is not ready yet
+    const activeSessionId = sessionId || 'guest-session';
+    
+    if (!messageToSend.trim() || isLoading) {
+      console.warn('[Chat] Cannot send: empty text or loading');
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -124,8 +132,9 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
-      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
-        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+      if (address && activeSessionId !== 'demo-session' && activeSessionId !== 'guest-session') {
+        console.log('[Chat] Saving message to DB for session:', activeSessionId);
+        await fetch(`${API_URL}/chat/sessions/${activeSessionId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -136,7 +145,7 @@ export default function ChatScreen() {
         });
 
         if (messages.length === 0) {
-          await fetch(`${API_URL}/chat/sessions/${sessionId}`, {
+          await fetch(`${API_URL}/chat/sessions/${activeSessionId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: messageToSend.slice(0, 50) })
@@ -155,7 +164,9 @@ export default function ChatScreen() {
 
       const systemPrompt = getSystemPrompt(address || '0x...', preferences);
       const rawResponse = await callGroq(groqMessages, systemPrompt);
+      console.log('[Chat] Raw AI Response:', rawResponse);
       const { text: cleanText, intent } = parseIntent(rawResponse);
+      console.log('[Chat] Parsed Intent:', JSON.stringify(intent, null, 2));
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -167,8 +178,8 @@ export default function ChatScreen() {
         status: 'sent'
       };
 
-      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
-        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+      if (address && activeSessionId !== 'demo-session' && activeSessionId !== 'guest-session') {
+        await fetch(`${API_URL}/chat/sessions/${activeSessionId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -213,7 +224,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -342,33 +353,34 @@ export default function ChatScreen() {
         )}
 
         {/* Input Area */}
-        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 10 }]}>
-          <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <View style={[styles.inputWrapper, { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)' }]}>
             <TextInput 
-              placeholder="Ask anything, / for quick prompts" 
-              placeholderTextColor={theme.textMuted}
-              style={[styles.input, { color: theme.text }]}
+              placeholder="Ask Molfi anything..." 
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              style={[styles.input, { color: '#FFF' }]}
               value={inputText}
               onChangeText={setInputText}
               multiline
-              textAlignVertical="top"
+              textAlignVertical="center"
+              onSubmitEditing={() => handleSend(inputText)}
             />
             
-            <View style={styles.inputActions}>
-              <TouchableOpacity 
-                style={[styles.micButton, { backgroundColor: theme.primary }, (isLoading || !inputText.trim()) && { opacity: 0.5 }]}
-                onPress={() => handleSend(inputText)}
-                disabled={isLoading || !inputText.trim()}
-              >
-                {!address ? (
-                   <Ionicons name="wallet-outline" size={20} color="#fff" />
-                ) : isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name={inputText.trim() ? "arrow-up" : "mic"} size={20} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              style={[styles.sendButton, { backgroundColor: theme.primary }, (isLoading || !inputText.trim()) && { opacity: 0.5 }]}
+              onPress={() => {
+                console.log('[Chat] Send button pressed');
+                handleSend(inputText);
+              }}
+              disabled={isLoading || !inputText.trim()}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="arrow-up" size={24} color="#000" />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -485,31 +497,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   inputWrapper: {
-    borderRadius: 24,
+    borderRadius: 30,
     borderWidth: 1,
-    padding: 12,
+    padding: 8,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    minHeight: 100,
-    maxHeight: 200,
+    alignItems: 'center',
+    minHeight: 56,
+    maxHeight: 120,
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   input: {
     flex: 1,
     fontFamily: 'Syne-Regular',
     fontSize: 16,
-    paddingHorizontal: 12,
-    paddingTop: 0,
-    paddingBottom: 0,
+    paddingHorizontal: 16,
+    maxHeight: 100,
   },
-  inputActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 4,
-  },
-  micButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },

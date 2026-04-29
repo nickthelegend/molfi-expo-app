@@ -1,5 +1,4 @@
-import 'text-encoding';
-import "@walletconnect/react-native-compat";
+import '../polyfills';
 import { ToastProvider } from '@/components/ui/Toast';
 import {
   AppKit,

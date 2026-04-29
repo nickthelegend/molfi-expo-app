@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { useUniswapSwap, formatQuoteAmount } from '@/hooks/useUniswapSwap';
+import { useLiFi } from '@/hooks/useLiFi';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { parseUnits } from 'viem';
 
 const { width } = Dimensions.get('window');
@@ -18,6 +18,7 @@ interface SwapCardProps {
     toTokenAddress: string | null;
     amount: string;
     chainId: number;
+    toChainId?: number;
     isMultiSwap?: boolean;
     swaps?: any[];
   };
@@ -60,8 +61,8 @@ const CHAIN_NAMES: Record<number, string> = {
 export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
-  const { getQuote, executeSwap, isLoading: isSwapping, error: swapError } = useUniswapSwap();
-  const [quote, setQuote] = useState<any>(null);
+  const { getQuote, executeRoute, isLoading: isSwapping, error: swapError } = useLiFi();
+  const [route, setRoute] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<'idle' | 'approving' | 'signing' | 'broadcasting' | 'confirmed' | 'error'>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -71,31 +72,33 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
     setIsLoading(true);
     setQuoteError(null);
     
-    // Normalize Chain ID (16600 -> 16601 for Galileo)
-    const effectiveChainId = payload.chainId === 16600 ? 16601 : payload.chainId;
+    const fromChain = payload.chainId;
+    const toChain = payload.toChainId || payload.chainId;
+    console.log(`[SwapCard] Fetching quote: ${payload.amount} ${payload.fromToken} (${fromChain}) -> ${payload.toToken} (${toChain})`);
     
-    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[effectiveChainId]?.[payload.fromToken] || payload.fromToken;
-    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[effectiveChainId]?.[payload.toToken] || payload.toToken;
-    
-    // Determine decimals (default to 18, use 6 for USDC/USDT)
-    const isStable = payload.fromToken.includes('USD');
-    const decimals = isStable ? 6 : 18;
+    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[fromChain]?.[payload.fromToken] || payload.fromToken;
+    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[toChain]?.[payload.toToken] || payload.toToken;
     
     try {
+      const isStable = payload.fromToken.includes('USD');
+      const decimals = isStable ? 6 : 18;
       const rawAmount = parseUnits(payload.amount, decimals).toString();
       
-      const data = await getQuote({
-        tokenIn,
-        tokenOut,
-        amount: rawAmount,
-        chainId: effectiveChainId,
+      const bestRoute = await getQuote({
+        fromChainId: fromChain,
+        toChainId: toChain,
+        fromTokenAddress: tokenIn,
+        toTokenAddress: tokenOut,
+        fromAmount: rawAmount,
       });
       
-      if (data) {
-        setQuote(data);
+      if (bestRoute) {
+        console.log('[SwapCard] Quote received successfully');
+        setRoute(bestRoute);
       }
-    } catch (e) {
-      setQuoteError("Failed to fetch quote");
+    } catch (e: any) {
+      console.error('[SwapCard] Quote fetch failed:', e.message);
+      setQuoteError("Failed to fetch bridge route");
     } finally {
       setIsLoading(false);
     }
@@ -106,20 +109,22 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
   }, [fetchQuote]);
 
   const handleSwap = async () => {
-    if (!quote) return;
+    if (!route) return;
+    console.log('[SwapCard] User initiated SIGN & EXECUTE');
     setStatus('signing');
-    const hash = await executeSwap(quote);
+    const hash = await executeRoute(route);
     if (hash) {
+      console.log('[SwapCard] Transaction confirmed! Hash:', hash);
       setTxHash(hash);
       setStatus('confirmed');
     } else {
+      console.error('[SwapCard] Execution failed or rejected');
       setStatus('error');
     }
   };
 
-  const outputAmount = quote ? formatQuoteAmount(quote) : null;
-  const routing = quote?.routing || 'CLASSIC';
-  const isUniswapX = routing.includes('DUTCH');
+  const outputAmount = route ? (Number(route.toAmount) / (10 ** (route.toToken.decimals || 18))).toFixed(6) : null;
+  const toolName = route?.steps[0]?.toolDetails?.name || 'Li.Fi';
 
   return (
     <Animated.View entering={FadeIn} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -163,13 +168,13 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
       <View style={styles.detailsContainer}>
         <DetailRow 
           label="Network" 
-          value={CHAIN_NAMES[payload.chainId] || `Chain ${payload.chainId}`} 
+          value={`${CHAIN_NAMES[payload.chainId] || 'Source'} → ${CHAIN_NAMES[payload.toChainId || payload.chainId] || 'Dest'}`} 
           theme={theme} 
         />
         <DetailRow 
-          label="Route" 
-          value={routing} 
-          badge={isUniswapX ? "MEV PROTECTED" : "DIRECT"}
+          label="Tool" 
+          value={toolName} 
+          badge={payload.toChainId && payload.toChainId !== payload.chainId ? "CROSS-CHAIN" : "DIRECT"}
           theme={theme} 
         />
         <DetailRow 
@@ -208,10 +213,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
             style={[
               styles.primaryButton, 
               { backgroundColor: theme.primary }, 
-              (!quote || isSwapping || isLoading) && styles.disabledButton
+              (!route || isSwapping || isLoading) && styles.disabledButton
             ]} 
             onPress={handleSwap}
-            disabled={!quote || isSwapping || isLoading}
+            disabled={!route || isSwapping || isLoading}
           >
             {isSwapping ? (
               <ActivityIndicator color="#FFF" />
