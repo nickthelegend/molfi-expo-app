@@ -83,10 +83,14 @@ function RootContent() {
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
-  const { isConnected } = useAccount();
+  const { isConnected, status } = useAccount();
 
   useEffect(() => {
+    // Wait for onboarding state to load
     if (isLoading) return;
+    
+    // Wait for wallet state to resolve if it's currently (re)connecting
+    if (status === 'connecting' || status === 'reconnecting') return;
 
     const inOnboardingGroup = segments[0] === 'onboarding';
     const inConnectWallet = segments[0] === 'connect-wallet';
@@ -100,7 +104,7 @@ function RootContent() {
         router.replace('/dashboard');
       }
     }
-  }, [hasCompletedOnboarding, isConnected, isLoading, segments]);
+  }, [hasCompletedOnboarding, isConnected, isLoading, segments, status]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

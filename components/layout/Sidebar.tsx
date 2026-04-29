@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { useAccount } from 'wagmi';
 
 interface SidebarItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -61,6 +63,11 @@ export function Sidebar({ activeRoute, onNavigate }: SidebarProps) {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
+  const { address } = useAccount();
+
+  const avatarUrl = address 
+    ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${address}`
+    : `https://api.dicebear.com/7.x/pixel-art/svg?seed=molfi`;
 
   return (
     <View style={[
@@ -72,9 +79,13 @@ export function Sidebar({ activeRoute, onNavigate }: SidebarProps) {
         borderRightColor: 'rgba(255, 255, 255, 0.05)',
       }
     ]}>
-      <View style={styles.logoContainer}>
-        <Text style={[styles.logoText, { color: theme.primary }]}>M</Text>
-      </View>
+      <TouchableOpacity style={styles.logoContainer} onPress={() => onNavigate('Home')}>
+        <Image 
+          source={require('@/assets/logo/logo.png')} 
+          style={styles.logoImage}
+          contentFit="contain"
+        />
+      </TouchableOpacity>
 
       <View style={styles.navItems}>
         <SidebarItem 
@@ -115,13 +126,18 @@ export function Sidebar({ activeRoute, onNavigate }: SidebarProps) {
       </View>
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity style={[styles.avatar, { backgroundColor: theme.primary }]}>
-          <Text style={styles.avatarText}>JD</Text>
+        <TouchableOpacity style={styles.avatarContainer}>
+          <Image 
+            source={{ uri: avatarUrl }} 
+            style={styles.avatarImage}
+            contentFit="cover"
+          />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   sidebar: {
@@ -133,13 +149,14 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   logoContainer: {
-    height: 40,
+    height: 48,
+    width: 48,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoText: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 24,
+  logoImage: {
+    width: 32,
+    height: 32,
   },
   navItems: {
     gap: 20,
@@ -161,16 +178,16 @@ const styles = StyleSheet.create({
   bottomContainer: {
     marginBottom: 10,
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  avatarContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
 });
