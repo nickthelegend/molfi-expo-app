@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -6,258 +6,269 @@ import {
   TouchableOpacity, 
   ScrollView, 
   SafeAreaView,
-  Dimensions
+  Dimensions,
+  FlatList,
+  RefreshControl,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAccount } from 'wagmi';
+import { API_URL } from '@/constants/Config';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { useRouter } from 'expo-router';
+import { formatDistanceToNow } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
-interface AgentItemProps {
+interface Agent {
+  _id: string;
   name: string;
-  created: string;
-  value: string;
-  change: string;
+  strategy: string;
+  status: 'active' | 'paused' | 'stopped';
+  createdAt: string;
+  totalPnL: number;
+  totalPnLPct: number;
+  tradesCount: number;
+  aum: number;
+  avatarColor?: string;
 }
 
-function AgentItem({ name, created, value, change }: AgentItemProps) {
-  return (
-    <TouchableOpacity style={styles.agentCard}>
-      <View style={styles.agentInfo}>
-        <Text style={styles.agentName}>{name}</Text>
-        <Text style={styles.agentCreated}>{created}</Text>
-      </View>
-      <View style={styles.agentStats}>
-        <Text style={styles.agentValue}>{value}</Text>
-        <Text style={styles.agentChange}>{change}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(val);
+};
 
 export default function AgentsScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
+  const { address } = useAccount();
+  const router = useRouter();
+
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchAgents = useCallback(async () => {
+    if (!address) return;
+    try {
+      const res = await fetch(`${API_URL}/agents?walletAddress=${address}`);
+      const json = await res.json();
+      if (json.success) {
+        setAgents(json.data);
+      }
+    } catch (error) {
+      console.error('Fetch agents error:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [address]);
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
+
+  const toggleStatus = async (agent: Agent) => {
+    const newStatus = agent.status === 'active' ? 'paused' : 'active';
+    try {
+      // Optimistic update
+      setAgents(prev => prev.map(a => a._id === agent._id ? { ...a, status: newStatus } : a));
+      
+      const res = await fetch(`${API_URL}/agents/${agent._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const json = await res.json();
+      if (!json.success) {
+        // Rollback on error
+        fetchAgents();
+      }
+    } catch (error) {
+      fetchAgents();
+    }
+  };
+
+  const destroyAgent = (id: string) => {
+    Alert.alert(
+      "Destroy Agent",
+      "Are you sure? This will stop all trading and close positions.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Destroy", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await fetch(`${API_URL}/agents/${id}`, { method: 'DELETE' });
+              const json = await res.json();
+              if (json.success) {
+                setAgents(prev => prev.filter(a => a._id !== id));
+              }
+            } catch (error) {
+              console.error('Delete error:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const renderAgentCard = ({ item }: { item: Agent }) => (
+    <View style={styles.agentCard}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.avatar, { backgroundColor: item.avatarColor || theme.primary }]}>
+          <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+        </View>
+        <View style={styles.headerInfo}>
+          <Text style={styles.agentName}>{item.name}</Text>
+          <Text style={styles.strategyText}>Strategy: {item.strategy}</Text>
+        </View>
+        <View style={[styles.statusPill, { backgroundColor: item.status === 'active' ? 'rgba(0,200,150,0.1)' : 'rgba(255,185,0,0.1)' }]}>
+          <View style={[styles.statusDot, { backgroundColor: item.status === 'active' ? '#00C896' : '#FFB900' }]} />
+          <Text style={[styles.statusText, { color: item.status === 'active' ? '#00C896' : '#FFB900' }]}>
+            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.statsGrid}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>AUM</Text>
+          <Text style={styles.statValue}>{formatCurrency(item.aum)}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>PnL</Text>
+          <Text style={[styles.statValue, { color: item.totalPnL >= 0 ? '#00C896' : '#FF3B30' }]}>
+            {item.totalPnL >= 0 ? '+' : ''}{formatCurrency(item.totalPnL)} ({item.totalPnLPct}%)
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.footerInfo}>
+        <Text style={styles.footerText}>Trades: {item.tradesCount}</Text>
+        <Text style={styles.footerText}>Created: {formatDistanceToNow(new Date(item.createdAt))} ago</Text>
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity 
+          style={styles.actionBtn} 
+          onPress={() => toggleStatus(item)}
+        >
+          <Ionicons name={item.status === 'active' ? "pause" : "play"} size={18} color="#fff" />
+          <Text style={styles.actionBtnText}>{item.status === 'active' ? "Pause" : "Resume"}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => router.push(`/agent/${item._id}`)}
+        >
+          <Ionicons name="list" size={18} color="#fff" />
+          <Text style={styles.actionBtnText}>Trades</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.actionBtn, styles.destroyBtn]}
+          onPress={() => destroyAgent(item._id)}
+        >
+          <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+          <Text style={[styles.actionBtnText, { color: '#FF3B30' }]}>Destroy</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.logoRow}>
-          <Image 
-            source={require('@/assets/logo/logo.png')} 
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <Text style={styles.headerTitle}>Agents</Text>
+        <View>
+          <Text style={styles.title}>Agents</Text>
+          <Text style={styles.subtitle}>{agents.filter(a => a.status === 'active').length} active agents</Text>
         </View>
-        
-        <TouchableOpacity style={styles.cartButton}>
-          <Ionicons name="cart-outline" size={22} color="#fff" />
+        <TouchableOpacity 
+          style={[styles.createBtn, { backgroundColor: theme.primary }]}
+          onPress={() => router.push('/agent/new')}
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.createBtnText}>New Agent</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Featured Card */}
-        <View style={[styles.featuredCard, { backgroundColor: theme.primary }]}>
-          <View style={styles.featuredContent}>
-            <Text style={styles.featuredTitle}>Deploy autonomous capital intelligence</Text>
-            
-            <TouchableOpacity style={styles.newAgentButton}>
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.newAgentText}>New agent</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.robotIllustration}>
-            <Ionicons name="hardware-chip" size={120} color="rgba(0,0,0,0.1)" />
-          </View>
+      {isLoading ? (
+        <View style={styles.listContainer}>
+          {[1, 2, 3].map(i => (
+            <View key={i} style={styles.skeletonCard}>
+              <Skeleton height={200} borderRadius={24} />
+            </View>
+          ))}
         </View>
-
-        {/* Filter Tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
-          <TouchableOpacity style={[styles.filterPill, styles.filterPillActive]}>
-            <Text style={styles.filterTextActive}>Created by me</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterPill}>
-            <Text style={styles.filterText}>Public Agents</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterPill}>
-            <Text style={styles.filterText}>Published</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Agent List */}
-        <View style={styles.agentList}>
-          <AgentItem 
-            name="Agent #3" 
-            created="Created 2weeks ago" 
-            value="$102.34" 
-            change="+2.45%" 
-          />
-          <AgentItem 
-            name="Alpha Strategy" 
-            created="Created 3 days ago" 
-            value="$452.10" 
-            change="+5.12%" 
-          />
-          <AgentItem 
-            name="Liquid Bot" 
-            created="Created 1 month ago" 
-            value="$1,204.00" 
-            change="-1.20%" 
-          />
-        </View>
-      </ScrollView>
+      ) : (
+        <FlatList
+          data={agents}
+          renderItem={renderAgentCard}
+          keyExtractor={item => item._id}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAgents} tintColor={theme.primary} />}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="brain-outline" size={48} color="rgba(255,255,255,0.1)" />
+              </View>
+              <Text style={styles.emptyTitle}>No Agents Yet</Text>
+              <Text style={styles.emptySubtitle}>Create your first AI trading agent to start automating your strategy.</Text>
+              <TouchableOpacity 
+                style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
+                onPress={() => router.push('/agent/new')}
+              >
+                <Text style={styles.emptyBtnText}>Create Agent</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logo: {
-    width: 32,
-    height: 32,
-  },
-  headerTitle: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 24,
-    color: '#fff',
-  },
-  cartButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#1d1d1d',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 100,
-  },
-  featuredCard: {
-    width: '100%',
-    height: 200,
-    borderRadius: 32,
-    padding: 24,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    marginBottom: 30,
-  },
-  featuredContent: {
-    flex: 1,
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  featuredTitle: {
-    fontFamily: 'Syne_600SemiBold',
-    fontSize: 24,
-    color: '#fff',
-    lineHeight: 32,
-    marginBottom: 20,
-  },
-  newAgentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    gap: 8,
-  },
-  newAgentText: {
-    fontFamily: 'Syne_600SemiBold',
-    fontSize: 16,
-    color: '#fff',
-  },
-  robotIllustration: {
-    position: 'absolute',
-    right: -20,
-    bottom: -20,
-    opacity: 0.5,
-  },
-  filterContainer: {
-    marginBottom: 20,
-  },
-  filterPill: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: '#111',
-  },
-  filterPillActive: {
-    backgroundColor: '#1d1d1d',
-  },
-  filterText: {
-    fontFamily: 'Syne_600SemiBold',
-    fontSize: 14,
-    color: '#6C6C6C',
-  },
-  filterTextActive: {
-    fontFamily: 'Syne_600SemiBold',
-    fontSize: 14,
-    color: '#fff',
-  },
-  agentList: {
-    gap: 12,
-  },
-  agentCard: {
-    backgroundColor: '#111',
-    borderRadius: 24,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1d1d1d',
-  },
-  agentInfo: {
-    flex: 1,
-  },
-  agentName: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 4,
-  },
-  agentCreated: {
-    fontFamily: 'Syne_400Regular',
-    fontSize: 14,
-    color: '#6C6C6C',
-  },
-  agentStats: {
-    alignItems: 'flex-end',
-  },
-  agentValue: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 4,
-  },
-  agentChange: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 14,
-    color: '#4CAF50',
-  },
+  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20 },
+  title: { fontFamily: 'Syne_700Bold', fontSize: 28, color: '#fff' },
+  subtitle: { fontFamily: 'KHTeka', fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
+  createBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, gap: 6 },
+  createBtnText: { fontFamily: 'Syne_600SemiBold', fontSize: 14, color: '#fff' },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  listContainer: { paddingHorizontal: 20 },
+  skeletonCard: { marginBottom: 16 },
+  agentCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  avatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { color: '#fff', fontFamily: 'Syne_700Bold', fontSize: 20 },
+  headerInfo: { flex: 1, marginLeft: 12 },
+  agentName: { fontFamily: 'Syne_700Bold', fontSize: 17, color: '#fff' },
+  strategyText: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, gap: 6 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontFamily: 'Syne_600SemiBold', fontSize: 11 },
+  statsGrid: { flexDirection: 'row', marginBottom: 16 },
+  statItem: { flex: 1 },
+  statLabel: { fontFamily: 'KHTeka', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 4 },
+  statValue: { fontFamily: 'DMMono_400Regular', fontSize: 16, color: '#fff' },
+  footerInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
+  footerText: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.3)' },
+  actionRow: { flexDirection: 'row', gap: 8 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', height: 44, borderRadius: 12, gap: 8 },
+  actionBtnText: { fontFamily: 'Syne_600SemiBold', fontSize: 13, color: '#fff' },
+  destroyBtn: { backgroundColor: 'rgba(255,59,48,0.05)' },
+  emptyState: { alignItems: 'center', marginTop: 100, paddingHorizontal: 40 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  emptyTitle: { fontFamily: 'Syne_700Bold', fontSize: 20, color: '#fff', marginBottom: 12 },
+  emptySubtitle: { fontFamily: 'KHTeka', fontSize: 15, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  emptyBtn: { paddingHorizontal: 32, paddingVertical: 16, borderRadius: 28 },
+  emptyBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' }
 });

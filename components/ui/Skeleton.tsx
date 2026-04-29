@@ -1,52 +1,72 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, DimensionValue } from 'react-native';
 import Animated, { 
-  useSharedValue, 
   useAnimatedStyle, 
+  useSharedValue, 
   withRepeat, 
   withTiming, 
-  withSequence 
+  interpolate,
+  LinearGradient 
 } from 'react-native-reanimated';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
 interface SkeletonProps {
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
   style?: ViewStyle;
 }
 
-export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
-  const opacity = useSharedValue(0.3);
+const AnimatedLinearGradient = Animated.createAnimatedComponent(ExpoLinearGradient);
+
+export const Skeleton = ({ 
+  width = '100%', 
+  height = 20, 
+  borderRadius = 8, 
+  style 
+}: SkeletonProps) => {
+  const shimmerValue = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 1000 }),
-        withTiming(0.3, { duration: 1000 })
-      ),
+    shimmerValue.value = withRepeat(
+      withTiming(1, { duration: 1500 }),
       -1,
-      true
+      false
     );
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      shimmerValue.value,
+      [0, 1],
+      [-150, 150]
+    );
+    return {
+      transform: [{ translateX }],
+    };
+  });
 
   return (
-    <Animated.View
+    <View 
       style={[
-        styles.skeleton,
-        { width, height, borderRadius },
-        animatedStyle,
-        style,
+        styles.container, 
+        { width, height, borderRadius }, 
+        style
       ]}
-    />
+    >
+      <AnimatedLinearGradient
+        colors={['transparent', 'rgba(255, 255, 255, 0.05)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[StyleSheet.absoluteFill, animatedStyle]}
+      />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  skeleton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  container: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    overflow: 'hidden',
   },
 });

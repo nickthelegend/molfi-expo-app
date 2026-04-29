@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -6,8 +6,9 @@ import {
   TouchableOpacity, 
   ScrollView, 
   SafeAreaView, 
-  FlatList,
-  Dimensions
+  Dimensions,
+  RefreshControl,
+  Share
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -15,24 +16,29 @@ import Animated, {
   useAnimatedStyle, 
   useSharedValue, 
   withSpring, 
-  withTiming 
+  withTiming,
+  interpolateColor
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount, useBalance, useReadContracts } from 'wagmi';
+import { erc20Abi, formatUnits } from 'viem';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRouter } from 'expo-router';
+import { API_URL } from '@/constants/Config';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import QRCode from 'react-native-qrcode-svg';
+import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
 
-const mockHoldings = [
-  { id: '1', name: 'Solana', ticker: 'SOL', amount: '0.45', value: '$102.34', change: '+2.45%', positive: true },
-  { id: '2', name: 'Ethereum', ticker: 'ETH', amount: '0.12', value: '$398.10', change: '-1.20%', positive: false },
-  { id: '3', name: 'Bitcoin', ticker: 'BTC', amount: '0.003', value: '$210.44', change: '+0.87%', positive: true },
-  { id: '4', name: '0G Token', ticker: '0G', amount: '1200', value: '$84.00', change: '+5.60%', positive: true },
-  { id: '5', name: 'Polygon', ticker: 'MATIC', amount: '540', value: '$54.00', change: '-0.34%', positive: false },
-];
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(val);
+};
 
 interface ActionButtonProps {
   label: string;
@@ -42,26 +48,17 @@ interface ActionButtonProps {
 
 function ActionButton({ label, icon, onPress }: ActionButtonProps) {
   const scale = useSharedValue(1);
-  
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.94);
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1);
-    onPress?.();
-  };
 
   return (
     <View style={styles.actionItem}>
       <TouchableOpacity 
         activeOpacity={1}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={() => (scale.value = withSpring(0.9))}
+        onPressOut={() => (scale.value = withSpring(1))}
+        onPress={onPress}
       >
         <Animated.View style={[styles.actionCircle, animatedStyle]}>
           <Ionicons name={icon} size={24} color="rgba(255,255,255,0.7)" />
@@ -79,154 +76,305 @@ export default function PortfolioScreen() {
   const router = useRouter();
   
   const { address, isConnected } = useAccount();
-  const { data: balance, isLoading: isBalanceLoading } = useBalance({
-    address: address,
-  });
+  const { data: nativeBalance, isLoading: isNativeLoading, refetch: refetchBalance } = useBalance({ address });
 
-  const [activeTab, setActiveTab] = useState('Tokens');
+  const [activeTab, setActiveTab] = useState('Assets');
+  const [portfolioData, setPortfolioData] = useState<any>(null);
+  const [agentWallets, setAgentWallets] = useState<any[]>([]);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [receiveVisible, setReceiveVisible] = useState(false);
+
+  // Tab indicator animation
+  const tabOffset = useSharedValue(0);
+  const tabIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withSpring(tabOffset.value) }],
+  }));
+
+  const fetchPortfolio = useCallback(async () => {
+    if (!address) return;
+    try {
+      const res = await fetch(`${API_URL}/portfolio?walletAddress=${address}`);
+      const json = await res.json();
+      if (json.success) setPortfolioData(json.data);
+
+      const agentsRes = await fetch(`${API_URL}/agents?walletAddress=${address}`);
+      const agentsJson = await agentsRes.json();
+      if (agentsJson.success) setAgentWallets(agentsJson.data);
+    } catch (error) {
+      console.error('Portfolio fetch error:', error);
+    }
+  }, [address]);
+
+  const fetchPrices = useCallback(async () => {
+    if (!portfolioData?.assets) return;
+    try {
+      const ids = portfolioData.assets.map((a: any) => `ethereum:${a.address}`).join(',');
+      const res = await fetch(`https://coins.llama.fi/prices/current/${ids}`);
+      const json = await res.json();
+      const prices: Record<string, number> = {};
+      Object.keys(json.coins).forEach(key => {
+        prices[key.split(':')[1].toLowerCase()] = json.coins[key].price;
+      });
+      setTokenPrices(prices);
+    } catch (error) {
+      console.error('Price fetch error:', error);
+    }
+  }, [portfolioData]);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    await Promise.all([fetchPortfolio(), refetchBalance()]);
+    setIsLoading(false);
+  }, [fetchPortfolio, refetchBalance]);
 
   useEffect(() => {
-    // Simulate initial data fetch
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    loadData();
+  }, [loadData]);
 
-  const formatAddress = (addr?: string) => {
-    if (!addr) return '@molfi_user';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  useEffect(() => {
+    if (portfolioData) fetchPrices();
+  }, [portfolioData]);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setIsRefreshing(false);
   };
 
-  const renderTokenRow = ({ item }: { item: typeof mockHoldings[0] }) => (
-    <TouchableOpacity 
-      style={styles.tokenCard} 
-      onPress={() => router.push(`/token/${item.id}`)}
-    >
-      <View style={styles.rowLeft}>
-        <View style={[styles.tokenLogoPlaceholder, { backgroundColor: `${theme.primary}22` }]}>
-          <Text style={styles.logoText}>{item.ticker[0]}</Text>
-        </View>
-        <View style={styles.tokenInfo}>
-          <Text style={styles.tokenName}>{item.name}</Text>
-          <Text style={styles.tokenAmount}>{item.amount} {item.ticker}</Text>
-        </View>
-      </View>
-      <View style={styles.rowRight}>
-        <Text style={styles.tokenValue}>{item.value}</Text>
-        <Text style={[styles.tokenChange, { color: item.positive ? '#00C896' : '#FF3B30' }]}>
-          {item.change}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const handleTabPress = (tab: string, index: number) => {
+    setActiveTab(tab);
+    tabOffset.value = index * ((width - 40) / 3);
+  };
+
+  const copyAddress = async () => {
+    if (address) {
+      await Clipboard.setStringAsync(address);
+      // Toast would go here
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
       >
-        {/* Header Row */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
-            <Image 
-              source={require('@/assets/logo/logo.png')} 
-              style={styles.logo}
-              contentFit="contain"
-            />
+            <Image source={require('@/assets/logo/logo.png')} style={styles.logo} contentFit="contain" />
             <Text style={styles.headerTitle}>Molfi AI</Text>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.username}>{formatAddress(address)}</Text>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
+            <Text style={styles.username}>{address ? `${address.slice(0,6)}...${address.slice(-4)}` : 'Disconnected'}</Text>
           </View>
         </View>
 
-        {/* Balance Hero */}
+        {/* Portfolio Card */}
         <View style={styles.heroSection}>
           <Text style={styles.heroLabel}>Total Portfolio Value</Text>
-          {isBalanceLoading || isLoading ? (
-            <Skeleton width={200} height={48} style={{ marginVertical: 8 }} />
+          {isLoading ? (
+            <Skeleton width={240} height={56} style={{ marginVertical: 8 }} />
           ) : (
             <Text style={styles.heroBalance}>
-              ${balance ? (parseFloat(balance.formatted) * 3318).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '12,560.21'}
+              {formatCurrency(portfolioData?.totalValue || 0)}
             </Text>
           )}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>+21.8% ↗</Text>
-          </View>
+          {!isLoading && portfolioData && (
+            <View style={[styles.badge, { backgroundColor: portfolioData.dailyPnL >= 0 ? 'rgba(0,200,150,0.15)' : 'rgba(255,59,48,0.15)' }]}>
+              <Text style={[styles.badgeText, { color: portfolioData.dailyPnL >= 0 ? '#00C896' : '#FF3B30' }]}>
+                {portfolioData.dailyPnL >= 0 ? '+' : ''}{formatCurrency(portfolioData.dailyPnL)} ({portfolioData.dailyPnLPct.toFixed(2)}%)
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Row */}
         <View style={styles.actionRow}>
-          <ActionButton label="Receive" icon="arrow-down-outline" />
-          <ActionButton label="Swap" icon="swap-horizontal-outline" />
-          <ActionButton label="Gateway" icon="wallet-outline" />
-          <ActionButton label="Send" icon="arrow-up-outline" />
+          <ActionButton label="Fund" icon="add-circle-outline" onPress={() => {}} />
+          <ActionButton label="Withdraw" icon="arrow-up-outline" onPress={() => {}} />
+          <ActionButton label="Receive" icon="arrow-down-outline" onPress={() => setReceiveVisible(true)} />
+          <ActionButton label="Publish" icon="globe-outline" onPress={() => {}} />
         </View>
 
-        {/* Upsell Banner */}
-        <TouchableOpacity 
-          style={styles.upsellBanner}
-          onPress={() => router.push('/(tabs)/')}
-        >
-          <View style={[styles.upsellIconCircle, { backgroundColor: `${theme.primary}1F` }]}>
-            <Ionicons name="flash-outline" size={22} color={theme.primary} />
-          </View>
-          <View style={styles.upsellContent}>
-            <Text style={styles.upsellTitle}>3x your research speed</Text>
-            <Text style={styles.upsellSubtitle}>with even more depth & insights</Text>
-          </View>
-          <View style={[styles.accentLine, { backgroundColor: theme.primary }]} />
-        </TouchableOpacity>
-
-        {/* Asset Tabs */}
-        <View style={styles.tabSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-            {['Tokens', 'Collectibles', 'Perps', 'Predictions'].map(tab => (
-              <TouchableOpacity 
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={[styles.tabChip, activeTab === tab && styles.tabChipActive]}
-              >
-                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {tab}
-                </Text>
+        {/* Tab Switcher */}
+        <View style={styles.tabSwitcherContainer}>
+          <View style={styles.tabSwitcher}>
+            <Animated.View style={[styles.activeIndicator, tabIndicatorStyle, { width: (width - 40) / 3 }]} />
+            {['Assets', 'Timeline', 'Agents'].map((tab, i) => (
+              <TouchableOpacity key={tab} style={styles.tabBtn} onPress={() => handleTabPress(tab, i)}>
+                <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>{tab}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
-        {/* Asset List */}
-        <View style={styles.assetList}>
-          {isLoading ? (
-            Array(5).fill(0).map((_, i) => (
-              <View key={i} style={styles.tokenCard}>
-                <Skeleton width={40} height={40} borderRadius={20} />
-                <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Skeleton width="60%" height={16} style={{ marginBottom: 8 }} />
-                  <Skeleton width="30%" height={12} />
+        {/* Content Area */}
+        <View style={styles.contentArea}>
+          {activeTab === 'Assets' && (
+            <>
+              {/* Personal Assets */}
+              <Text style={styles.sectionTitle}>Personal Assets</Text>
+              <View style={styles.assetCard}>
+                <View style={styles.tokenRow}>
+                  <View style={[styles.tokenIcon, { backgroundColor: `${theme.primary}22` }]}>
+                    <Text style={styles.tokenIconText}>E</Text>
+                  </View>
+                  <View style={styles.tokenInfo}>
+                    <Text style={styles.tokenSymbol}>ETH</Text>
+                    <Text style={styles.tokenAmount}>{nativeBalance ? parseFloat(nativeBalance.formatted).toFixed(4) : '0.0000'} tokens</Text>
+                  </View>
+                  <View style={styles.tokenValues}>
+                    <Text style={styles.tokenValueUsd}>{formatCurrency(nativeBalance ? parseFloat(nativeBalance.formatted) * (tokenPrices['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'] || 0) : 0)}</Text>
+                  </View>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Skeleton width={60} height={16} style={{ marginBottom: 8 }} />
-                  <Skeleton width={40} height={12} />
-                </View>
+                {portfolioData?.assets.map((asset: any) => (
+                  <View key={asset.address} style={styles.tokenRow}>
+                    <View style={[styles.tokenIcon, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                      <Text style={styles.tokenIconText}>{asset.symbol[0]}</Text>
+                    </View>
+                    <View style={styles.tokenInfo}>
+                      <Text style={styles.tokenSymbol}>{asset.symbol}</Text>
+                      <Text style={styles.tokenAmount}>{parseFloat(asset.amount).toFixed(2)} tokens</Text>
+                    </View>
+                    <View style={styles.tokenValues}>
+                      <Text style={styles.tokenValueUsd}>{formatCurrency(parseFloat(asset.amount) * (tokenPrices[asset.address.toLowerCase()] || 0))}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))
-          ) : (
-            mockHoldings.map(item => (
-              <React.Fragment key={item.id}>
-                {renderTokenRow({ item })}
-              </React.Fragment>
-            ))
+
+              {/* Agent Wallets */}
+              <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Agent Wallets</Text>
+              {agentWallets.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Ionicons name="robot-outline" size={32} color="rgba(255,255,255,0.2)" />
+                  <Text style={styles.emptyText}>No active agent wallets</Text>
+                </View>
+              ) : (
+                agentWallets.map(agent => (
+                  <TouchableOpacity 
+                    key={agent._id} 
+                    style={styles.agentWalletCard}
+                    onPress={() => router.push(`/agent/${agent._id}`)}
+                  >
+                    <View style={styles.agentHeader}>
+                      <View style={[styles.agentAvatar, { backgroundColor: agent.avatarColor || theme.primary }]}>
+                        <Text style={styles.agentAvatarText}>{agent.name[0]}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.agentName}>{agent.name}</Text>
+                        <Text style={styles.agentAddr}>{agent.agentWalletAddress.slice(0,10)}...{agent.agentWalletAddress.slice(-4)}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+                    </View>
+                    <View style={styles.agentSummary}>
+                      <Text style={styles.aumLabel}>AUM: <Text style={styles.aumValue}>{formatCurrency(agent.aum)}</Text></Text>
+                      <Text style={[styles.pnlText, { color: agent.totalPnL >= 0 ? '#00C896' : '#FF3B30' }]}>
+                        {agent.totalPnL >= 0 ? '+' : ''}{agent.totalPnLPct}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </>
+          )}
+
+          {activeTab === 'Timeline' && (
+            <View style={styles.emptyCard}>
+              <Ionicons name="time-outline" size={32} color="rgba(255,255,255,0.2)" />
+              <Text style={styles.emptyText}>Activity timeline coming soon</Text>
+            </View>
+          )}
+          
+          {activeTab === 'Agents' && (
+            <View style={styles.emptyCard}>
+              <Ionicons name="apps-outline" size={32} color="rgba(255,255,255,0.2)" />
+              <Text style={styles.emptyText}>Navigate to Agents tab for full management</Text>
+            </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Receive Bottom Sheet */}
+      <BottomSheet isVisible={receiveVisible} onClose={() => setReceiveVisible(false)} snapPoints={['60%']}>
+        <View style={styles.receiveSheet}>
+          <Text style={styles.sheetTitle}>Receive Assets</Text>
+          <View style={styles.qrContainer}>
+            <QRCode value={address || ''} size={200} backgroundColor="transparent" color="#fff" />
+          </View>
+          <TouchableOpacity style={styles.addressBox} onPress={copyAddress}>
+            <Text style={styles.addressText}>{address}</Text>
+            <Ionicons name="copy-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <Text style={styles.qrDesc}>Scan this address to send ETH or ERC20 tokens to your Molfi wallet.</Text>
+          <TouchableOpacity style={[styles.closeBtn, { backgroundColor: theme.primary }]} onPress={() => setReceiveVisible(false)}>
+            <Text style={styles.closeBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 32, height: 32 },
+  headerTitle: { fontFamily: 'Syne_700Bold', fontSize: 20, color: '#fff' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  username: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  heroSection: { alignItems: 'center', paddingVertical: 32 },
+  heroLabel: { fontFamily: 'Syne_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 8 },
+  heroBalance: { fontFamily: 'DMMono_400Regular', fontSize: 48, color: '#fff', marginBottom: 12 },
+  badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  badgeText: { fontFamily: 'DMMono_400Regular', fontSize: 12 },
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginTop: 16 },
+  actionItem: { alignItems: 'center', gap: 8 },
+  actionCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },
+  actionLabel: { fontFamily: 'KHTeka', fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  tabSwitcherContainer: { paddingHorizontal: 20, marginTop: 40 },
+  tabSwitcher: { height: 48, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 24, flexDirection: 'row', padding: 4, position: 'relative' },
+  activeIndicator: { position: 'absolute', top: 4, bottom: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+  tabBtn: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tabBtnText: { fontFamily: 'Syne_600SemiBold', fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  tabBtnTextActive: { color: '#fff' },
+  contentArea: { paddingHorizontal: 20, marginTop: 32 },
+  sectionTitle: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff', marginBottom: 16 },
+  assetCard: { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, padding: 16, gap: 16 },
+  tokenRow: { flexDirection: 'row', alignItems: 'center' },
+  tokenIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  tokenIconText: { color: '#fff', fontFamily: 'Syne_700Bold', fontSize: 18 },
+  tokenInfo: { flex: 1, marginLeft: 12 },
+  tokenSymbol: { fontFamily: 'Syne_700Bold', fontSize: 15, color: '#fff' },
+  tokenAmount: { fontFamily: 'DMMono_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  tokenValues: { alignItems: 'flex-end' },
+  tokenValueUsd: { fontFamily: 'DMMono_400Regular', fontSize: 15, color: '#fff' },
+  emptyCard: { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, padding: 40, alignItems: 'center', gap: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)' },
+  emptyText: { fontFamily: 'KHTeka', fontSize: 14, color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
+  agentWalletCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  agentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  agentAvatar: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  agentAvatarText: { color: '#fff', fontFamily: 'Syne_700Bold', fontSize: 18 },
+  agentName: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' },
+  agentAddr: { fontFamily: 'DMMono_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+  agentSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
+  aumLabel: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  aumValue: { fontFamily: 'DMMono_400Regular', color: '#fff' },
+  pnlText: { fontFamily: 'DMMono_400Regular', fontSize: 14 },
+  receiveSheet: { alignItems: 'center', gap: 24 },
+  sheetTitle: { fontFamily: 'Syne_700Bold', fontSize: 20, color: '#fff' },
+  qrContainer: { padding: 20, backgroundColor: '#fff', borderRadius: 24 },
+  addressBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, gap: 12, width: '100%' },
+  addressText: { flex: 1, fontFamily: 'DMMono_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  qrDesc: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 20 },
+  closeBtn: { width: '100%', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
+  closeBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' }
+});
 
 const styles = StyleSheet.create({
   container: {
