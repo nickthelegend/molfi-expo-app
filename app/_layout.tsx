@@ -74,7 +74,7 @@ const appkit = createAppKit({
   metadata,
   clipboardClient,
   storage,
-  defaultNetwork: zeroGGalileoTestnet,
+  defaultNetwork: zeroGMainnet,
   enableAnalytics: true,
 });
 

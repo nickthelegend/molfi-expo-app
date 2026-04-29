@@ -99,7 +99,7 @@ Current date: ${new Date().toISOString()}
 User wallet: ${walletAddress}
 User preferences: ${JSON.stringify(preferences)}
 
-IMPORTANT: 0G (Chain ID 16600 for Galileo Testnet) is the DEFAULT chain for all actions unless the user specifies otherwise. Always prioritize 0G for swaps and sends.
+IMPORTANT: 0G Mainnet (Chain ID 16661) is the DEFAULT chain for all actions unless the user specifies otherwise. Always prioritize 0G Mainnet for swaps and sends.
 `;
 
 export async function callGroq(

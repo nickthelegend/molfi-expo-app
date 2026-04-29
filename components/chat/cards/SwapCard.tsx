@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import { parseUnits } from 'viem';
 
 const { width } = Dimensions.get('window');
 
@@ -34,8 +35,14 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
     'ETH': 'ETH',
     'WETH': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
   },
-  16600: {
-    'USDC': '0x...', // 0G Testnet USDC
+  16601: {
+    'USDC': '0x627d32C41D35284050b168925501867160965383', // 0G Testnet USDC
+    'USDT': '0xe444985223630f9a656683526010041d8e64c383', // 0G Testnet USDT
+    'ETH': 'ETH',
+  },
+  16661: {
+    'USDC': '0x627d32C41D35284050b168925501867160965383', // 0G Mainnet USDC (Placeholder)
+    'USDT': '0xe444985223630f9a656683526010041d8e64c383', // 0G Mainnet USDT (Placeholder)
     'ETH': 'ETH',
   }
 };
@@ -43,7 +50,10 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
 const CHAIN_NAMES: Record<number, string> = {
   1: 'Ethereum',
   8453: 'Base',
-  16600: '0G Galileo',
+  16600: '0G Newton',
+  16601: '0G Galileo',
+  16661: '0G Mainnet',
+  80087: '0G Galileo',
   42161: 'Arbitrum',
 };
 
@@ -60,21 +70,29 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
   const fetchQuote = useCallback(async () => {
     setIsLoading(true);
     setQuoteError(null);
-    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.fromToken] || payload.fromToken;
-    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[payload.chainId]?.[payload.toToken] || payload.toToken;
+    
+    // Normalize Chain ID (16600 -> 16601 for Galileo)
+    const effectiveChainId = payload.chainId === 16600 ? 16601 : payload.chainId;
+    
+    const tokenIn = payload.fromTokenAddress || TOKEN_ADDRESSES[effectiveChainId]?.[payload.fromToken] || payload.fromToken;
+    const tokenOut = payload.toTokenAddress || TOKEN_ADDRESSES[effectiveChainId]?.[payload.toToken] || payload.toToken;
+    
+    // Determine decimals (default to 18, use 6 for USDC/USDT)
+    const isStable = payload.fromToken.includes('USD');
+    const decimals = isStable ? 6 : 18;
     
     try {
+      const rawAmount = parseUnits(payload.amount, decimals).toString();
+      
       const data = await getQuote({
         tokenIn,
         tokenOut,
-        amount: payload.amount,
-        chainId: payload.chainId,
+        amount: rawAmount,
+        chainId: effectiveChainId,
       });
       
       if (data) {
         setQuote(data);
-      } else {
-        setQuoteError("Chain not supported by Uniswap API yet");
       }
     } catch (e) {
       setQuoteError("Failed to fetch quote");

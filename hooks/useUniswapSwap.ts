@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { useSendTransaction, useSignTypedData } from 'wagmi';
-import { Address, parseUnits, isAddress, isHex } from 'viem';
+import { Address, isAddress, isHex } from 'viem';
 
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
 const UNISWAP_API_KEY = 'VhS0REuDP3oJRt7kOcpB_LN_v0oyez8oerF2ogocHZU'; 
 
-const SUPPORTED_CHAINS = [1, 10, 56, 137, 8453, 42161, 43114, 11155111, 11155420];
+const SUPPORTED_CHAINS = [1, 10, 56, 137, 8453, 42161, 43114, 11155111, 11155420, 16600, 16601, 16661, 80087];
 
 export type QuoteParams = {
   tokenIn: string;
@@ -25,13 +25,11 @@ export function useUniswapSwap() {
   const [error, setError] = useState<string | null>(null);
 
   const getQuote = useCallback(async (params: QuoteParams) => {
-    if (!SUPPORTED_CHAINS.includes(params.chainId)) {
-      setError(`Chain ${params.chainId} is not supported by Uniswap API`);
-      return null;
-    }
     setIsLoading(true);
     setError(null);
     try {
+      console.log(`[useUniswapSwap] Fetching Uniswap quote for chain ${params.chainId}...`);
+      
       const response = await fetch(`${TRADING_API_BASE}/quote`, {
         method: 'POST',
         headers: {
@@ -53,7 +51,10 @@ export function useUniswapSwap() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Failed to get quote');
+      if (!response.ok) {
+        console.error(`[useUniswapSwap] API Error:`, data);
+        throw new Error(data.message || data.detail || 'Failed to get quote');
+      }
       return data;
     } catch (err: any) {
       setError(err.message);
@@ -70,7 +71,6 @@ export function useUniswapSwap() {
       const isUniswapX = ['DUTCH_V2', 'DUTCH_V3', 'PRIORITY'].includes(quoteResponse.routing);
       let signature: string | undefined;
 
-      // 1. Handle Permit2 Signing if needed
       if (quoteResponse.permitData) {
         signature = await signTypedDataAsync({
           domain: quoteResponse.permitData.domain,
@@ -80,7 +80,6 @@ export function useUniswapSwap() {
         } as any);
       }
 
-      // 2. Prepare Swap Request
       const { permitData, permitTransaction, ...cleanQuote } = quoteResponse;
       const swapRequest: any = { ...cleanQuote };
 
@@ -104,11 +103,10 @@ export function useUniswapSwap() {
       });
 
       const swapData = await swapResponse.json();
-      if (!swapResponse.ok) throw new Error(swapData.message || 'Failed to prepare swap');
+      if (!swapResponse.ok) throw new Error(swapData.message || swapData.detail || 'Failed to prepare swap');
 
       const { swap } = swapData;
 
-      // 3. Send transaction
       const hash = await sendTransactionAsync({
         to: swap.to as Address,
         data: swap.data as `0x${string}`,
@@ -135,11 +133,20 @@ export function useUniswapSwap() {
   };
 }
 
-export function formatQuoteAmount(quoteResponse: any, decimals: number = 18): string {
-  if (!quoteResponse) return '0';
+export function formatQuoteAmount(quoteResponse: any): string {
+  if (!quoteResponse || !quoteResponse.quote) return '0';
   
-  const isUniswapX = ['DUTCH_V2', 'DUTCH_V3', 'PRIORITY'].includes(quoteResponse.routing);
+  const routing = quoteResponse.routing || 'CLASSIC';
+  const isUniswapX = ['DUTCH_V2', 'DUTCH_V3', 'PRIORITY'].includes(routing);
   
+  // Detect output token decimals (default to 18, use 6 for USDC/USDT)
+  const outToken = 
+    quoteResponse.quote?.output?.token || 
+    quoteResponse.quote?.orderInfo?.outputs?.[0]?.token || 
+    '';
+  const isStable = outToken.toLowerCase().includes('usd');
+  const decimals = isStable ? 6 : 18;
+
   if (isUniswapX) {
     const firstOutput = quoteResponse.quote.orderInfo.outputs[0];
     if (!firstOutput) return '0';
