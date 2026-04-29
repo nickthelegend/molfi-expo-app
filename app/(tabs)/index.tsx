@@ -206,7 +206,6 @@ export default function HomeScreen() {
           <Ionicons name="chatbubble" size={24} color="#FFF" />
           <Text style={styles.chatFabText}>Chat with Molfi</Text>
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );

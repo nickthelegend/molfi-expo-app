@@ -58,9 +58,9 @@ export function LineChart({ data, config }: LineChartProps) {
                 borderColor: theme.border,
               }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.primary, marginBottom: 4 }} />
-                <View style={{ color: theme.text, fontWeight: 'bold' }}>
+                <Text style={{ color: theme.text, fontWeight: 'bold' }}>
                   {items[0].value}
-                </View>
+                </Text>
               </View>
             );
           },

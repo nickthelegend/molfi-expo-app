@@ -23,6 +23,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { useBalance } from 'wagmi';
 import { API_URL } from '@/constants/Config';
+import { useRouter, Stack } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, height: 60 },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontFamily: 'Syne_700Bold', fontSize: 18, color: '#fff' },
+  headerTitle: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff' },
   progressContainer: { paddingHorizontal: 24, paddingVertical: 10 },
   progressLine: { height: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%' },
@@ -321,10 +322,10 @@ const styles = StyleSheet.create({
   slideContainer: { flexDirection: 'row', width: width * 3, flex: 1 },
   stepPage: { width: width, flex: 1 },
   stepContent: { padding: 24 },
-  sectionTitle: { fontFamily: 'Syne_700Bold', fontSize: 24, color: '#fff', marginBottom: 32 },
+  sectionTitle: { fontFamily: 'Syne-Bold', fontSize: 24, color: '#fff', marginBottom: 32 },
   inputGroup: { marginBottom: 32 },
-  label: { fontFamily: 'Syne_600SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 12 },
-  input: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, color: '#fff', fontFamily: 'Syne_400Regular', fontSize: 16 },
+  label: { fontFamily: 'Syne-Medium', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 12 },
+  input: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, color: '#fff', fontFamily: 'Syne-Regular', fontSize: 16 },
   multilineInput: { height: 120, textAlignVertical: 'top' },
   helperText: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 },
   colorRow: { flexDirection: 'row', gap: 12 },
@@ -333,11 +334,11 @@ const styles = StyleSheet.create({
   previewContainer: { marginTop: 16 },
   previewCard: { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)' },
   avatarLarge: { width: 80, height: 80, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  avatarLargeText: { color: '#fff', fontFamily: 'Syne_700Bold', fontSize: 32 },
-  previewName: { fontFamily: 'Syne_700Bold', fontSize: 20, color: '#fff' },
+  avatarLargeText: { color: '#fff', fontFamily: 'Syne-Bold', fontSize: 32 },
+  previewName: { fontFamily: 'Syne-Bold', fontSize: 20, color: '#fff' },
   strategyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   strategyCard: { width: (width - 60) / 2, padding: 20, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 12, position: 'relative' },
-  strategyName: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' },
+  strategyName: { fontFamily: 'Syne-Bold', fontSize: 16, color: '#fff' },
   strategyDesc: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 18 },
   checkBadge: { position: 'absolute', top: 12, right: 12, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
   sliderContainer: { height: 40, justifyContent: 'center', position: 'relative' },
@@ -345,12 +346,12 @@ const styles = StyleSheet.create({
   sliderFill: { height: 4, position: 'absolute', borderRadius: 2 },
   sliderThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#0A0A0A', borderWidth: 4, position: 'absolute', marginLeft: -10 },
   reviewCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 24, marginTop: 24 },
-  reviewTitle: { fontFamily: 'Syne_700Bold', fontSize: 18, color: '#fff', marginBottom: 20 },
+  reviewTitle: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff', marginBottom: 20 },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   reviewLabel: { fontFamily: 'KHTeka', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  reviewValue: { fontFamily: 'Syne_600SemiBold', fontSize: 14, color: '#fff' },
+  reviewValue: { fontFamily: 'Syne-Medium', fontSize: 14, color: '#fff' },
   footer: { padding: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   primaryBtn: { height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
-  primaryBtnText: { fontFamily: 'Syne_700Bold', fontSize: 18, color: '#fff' },
+  primaryBtnText: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff' },
   disabledBtn: { opacity: 0.5 }
 });
