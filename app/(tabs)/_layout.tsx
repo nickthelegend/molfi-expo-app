@@ -77,21 +77,21 @@ export default function TabLayout() {
           marginHorizontal: 16,
           height: 64,
           borderRadius: 32,
-          backgroundColor: 'transparent',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)', // Added semi-transparent black
           borderTopWidth: 0,
           elevation: 20,
           shadowColor: theme.primary,
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.08,
+          shadowOpacity: 0.1,
           shadowRadius: 20,
           paddingBottom: 0,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.07)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
           overflow: 'hidden',
         },
         tabBarBackground: () => (
           <BlurView
-            intensity={80}
+            intensity={100} // Increased intensity
             tint="dark"
             style={StyleSheet.absoluteFill}
           />
