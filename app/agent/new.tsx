@@ -20,8 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useRouter, Stack } from 'expo-router';
-import { useAccount, useBalance } from 'wagmi';
+import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
+import { useBalance } from 'wagmi';
 import { API_URL } from '@/constants/Config';
 
 const { width } = Dimensions.get('window');
@@ -39,8 +39,8 @@ export default function NewAgentScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const router = useRouter();
-  const { address } = useAccount();
-  const { data: balance } = useBalance({ address });
+  const { address } = useAppKitAccount();
+  const { data: balance } = useBalance({ address: address as `0x${string}` });
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);

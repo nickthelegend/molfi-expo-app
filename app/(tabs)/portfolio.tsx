@@ -20,7 +20,8 @@ import Animated, {
   interpolateColor
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAccount, useBalance, useReadContracts } from 'wagmi';
+import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
+import { useBalance, useReadContracts } from 'wagmi';
 import { erc20Abi, formatUnits } from 'viem';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -69,14 +70,43 @@ function ActionButton({ label, icon, onPress }: ActionButtonProps) {
   );
 }
 
+function AgentWalletRow({ agent, theme }: { agent: any, theme: any }) {
+  const { data: balance } = useBalance({ address: agent.agentWalletAddress as `0x${string}` });
+  const router = useRouter();
+
+  return (
+    <TouchableOpacity 
+      style={styles.agentWalletCard}
+      onPress={() => router.push(`/agent/${agent._id}`)}
+    >
+      <View style={styles.agentHeader}>
+        <View style={[styles.agentAvatar, { backgroundColor: agent.avatarColor || theme.primary }]}>
+          <Text style={styles.agentAvatarText}>{agent.name[0]}</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.agentName}>{agent.name}</Text>
+          <Text style={styles.agentAddr}>{agent.agentWalletAddress.slice(0,10)}...{agent.agentWalletAddress.slice(-4)}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
+      </View>
+      <View style={styles.agentSummary}>
+        <Text style={styles.aumLabel}>On-chain: <Text style={styles.aumValue}>{balance ? `${parseFloat(balance.formatted).toFixed(4)} ${balance.symbol}` : '0.0000 ETH'}</Text></Text>
+        <Text style={[styles.pnlText, { color: agent.totalPnL >= 0 ? '#00C896' : '#FF3B30' }]}>
+          {agent.totalPnL >= 0 ? '+' : ''}{agent.totalPnLPct}%
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function PortfolioScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
-  const { address, isConnected } = useAccount();
-  const { data: nativeBalance, isLoading: isNativeLoading, refetch: refetchBalance } = useBalance({ address });
+  const { address, isConnected } = useAppKitAccount();
+  const { data: nativeBalance, isLoading: isNativeLoading, refetch: refetchBalance } = useBalance({ address: address as `0x${string}` });
 
   const [activeTab, setActiveTab] = useState('Assets');
   const [portfolioData, setPortfolioData] = useState<any>(null);
@@ -251,33 +281,15 @@ export default function PortfolioScreen() {
               <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Agent Wallets</Text>
               {agentWallets.length === 0 ? (
                 <View style={styles.emptyCard}>
-                  <Ionicons name="robot-outline" size={32} color="rgba(255,255,255,0.2)" />
+                  <Ionicons name="hardware-chip-outline" size={32} color="rgba(255,255,255,0.2)" />
                   <Text style={styles.emptyText}>No active agent wallets</Text>
+                  <TouchableOpacity onPress={loadData} style={styles.retryBtn}>
+                    <Text style={styles.retryText}>Retry</Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 agentWallets.map(agent => (
-                  <TouchableOpacity 
-                    key={agent._id} 
-                    style={styles.agentWalletCard}
-                    onPress={() => router.push(`/agent/${agent._id}`)}
-                  >
-                    <View style={styles.agentHeader}>
-                      <View style={[styles.agentAvatar, { backgroundColor: agent.avatarColor || theme.primary }]}>
-                        <Text style={styles.agentAvatarText}>{agent.name[0]}</Text>
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.agentName}>{agent.name}</Text>
-                        <Text style={styles.agentAddr}>{agent.agentWalletAddress.slice(0,10)}...{agent.agentWalletAddress.slice(-4)}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
-                    </View>
-                    <View style={styles.agentSummary}>
-                      <Text style={styles.aumLabel}>AUM: <Text style={styles.aumValue}>{formatCurrency(agent.aum)}</Text></Text>
-                      <Text style={[styles.pnlText, { color: agent.totalPnL >= 0 ? '#00C896' : '#FF3B30' }]}>
-                        {agent.totalPnL >= 0 ? '+' : ''}{agent.totalPnLPct}%
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                  <AgentWalletRow key={agent._id} agent={agent} theme={theme} />
                 ))
               )}
             </>
@@ -373,226 +385,9 @@ const styles = StyleSheet.create({
   addressText: { flex: 1, fontFamily: 'DMMono_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   qrDesc: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 20 },
   closeBtn: { width: '100%', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
-  closeBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' }
+  closeBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' },
+  retryBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
+  retryText: { fontFamily: 'Syne_600SemiBold', fontSize: 13, color: '#fff' }
 });
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logo: {
-    width: 32,
-    height: 32,
-  },
-  headerTitle: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 20,
-    color: '#fff',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  username: {
-    fontFamily: 'KHTeka',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  heroLabel: {
-    fontFamily: 'Syne_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    marginBottom: 8,
-  },
-  heroBalance: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 48,
-    color: '#fff',
-    marginBottom: 12,
-  },
-  badge: {
-    backgroundColor: 'rgba(0,200,150,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 12,
-    color: '#00C896',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 16,
-  },
-  actionItem: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionLabel: {
-    fontFamily: 'KHTeka',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  upsellBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginHorizontal: 20,
-    marginTop: 32,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    overflow: 'hidden',
-  },
-  upsellIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  upsellContent: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  upsellTitle: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 14,
-    color: '#fff',
-  },
-  upsellSubtitle: {
-    fontFamily: 'KHTeka',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 2,
-  },
-  accentLine: {
-    position: 'absolute',
-    left: 0,
-    top: 16,
-    bottom: 16,
-    width: 2,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-  },
-  tabSection: {
-    marginTop: 32,
-  },
-  tabScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  tabChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  tabChipActive: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  tabText: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  assetList: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
-  tokenCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
-  },
-  rowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  tokenLogoPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#fff',
-    fontFamily: 'Syne_700Bold',
-    fontSize: 18,
-  },
-  tokenInfo: {
-    marginLeft: 12,
-  },
-  tokenName: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 14,
-    color: '#fff',
-  },
-  tokenAmount: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 2,
-  },
-  rowRight: {
-    alignItems: 'flex-end',
-  },
-  tokenValue: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 15,
-    color: '#fff',
-  },
-  tokenChange: {
-    fontFamily: 'DMMono_400Regular',
-    fontSize: 12,
-    marginTop: 4,
-  },
-});
+

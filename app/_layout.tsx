@@ -15,10 +15,14 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import * as Reanimated from 'react-native-reanimated';
 if (!(Reanimated as any).useWorkletCallback) {
   (Reanimated as any).useWorkletCallback = (cb: any) => cb;
+}
+if (!(Reanimated as any).useAnimatedGestureHandler) {
+  (Reanimated as any).useAnimatedGestureHandler = () => ({});
 }
 import * as Clipboard from 'expo-clipboard';
 import { Syne_400Regular, Syne_600SemiBold, Syne_700Bold } from '@expo-google-fonts/syne';
@@ -129,22 +133,24 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <WagmiProvider config={wagmiAdapter.wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <AppKitProvider instance={appkit}>
-            <ToastProvider>
-              <RootContent />
-            </ToastProvider>
-            <StatusBar style="auto" />
-            {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
-            <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
-              <AppKit />
-            </View>
-          </AppKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <AppKitProvider instance={appkit}>
+              <ToastProvider>
+                <RootContent />
+              </ToastProvider>
+              <StatusBar style="auto" />
+              {/* This is a workaround for the Android modal issue. https://github.com/expo/expo/issues/32991#issuecomment-2489620459 */}
+              <View style={{ position: "absolute", height: "100%", width: "100%" }} pointerEvents="box-none">
+                <AppKit />
+              </View>
+            </AppKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
