@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { useAccount, useSendTransaction, useSignTypedData } from 'wagmi';
+import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
+import { useSendTransaction, useSignTypedData } from 'wagmi';
 import { Address, parseUnits } from 'viem';
 
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
@@ -8,7 +9,7 @@ const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
 const UNISWAP_API_KEY = 'VhS0REuDP3oJRt7kOcpB_LN_v0oyez8oerF2ogocHZU'; 
 
 export function useUniswapSwap() {
-  const { address } = useAccount();
+  const { address } = useAppKitAccount();
   const { sendTransactionAsync } = useSendTransaction();
   const { signTypedDataAsync } = useSignTypedData();
 

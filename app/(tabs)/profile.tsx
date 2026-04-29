@@ -5,20 +5,25 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView 
+  SafeAreaView,
+  Alert,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useAccount } from 'wagmi';
-import { useAppKit } from '@reown/appkit-react-native';
+import { useAccount as useAppKitAccount, useAppKit } from '@reown/appkit-react-native';
+import { useDisconnect } from 'wagmi';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useAppKitAccount();
   const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
+  const router = useRouter();
 
   const avatarUrl = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${address || 'molfi'}`;
 
@@ -26,8 +31,46 @@ export default function ProfileScreen() {
     open();
   };
 
-  const renderSettingItem = (icon: keyof typeof Ionicons.glyphMap, title: string, subtitle?: string) => (
-    <TouchableOpacity style={styles.settingItem}>
+  const handleDisconnect = () => {
+    Alert.alert(
+      "Disconnect",
+      "Are you sure you want to disconnect your wallet?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Disconnect", 
+          style: "destructive", 
+          onPress: () => {
+            disconnect();
+            router.replace('/connect-wallet');
+          } 
+        }
+      ]
+    );
+  };
+
+  const handleFeatureNotReady = (title: string) => {
+    Alert.alert("Coming Soon", `${title} is under development and will be available in the next update.`);
+  };
+
+  const handleSupport = (type: string) => {
+    if (type === 'About') {
+      Alert.alert("Molfi AI v1.0.4", "Molfi is the world's first AI-native crypto trading ecosystem, empowering users with autonomous agents and institutional-grade tools.");
+    } else {
+      Linking.openURL('https://molfi.app/support');
+    }
+  };
+
+  const renderSettingItem = (
+    icon: keyof typeof Ionicons.glyphMap, 
+    title: string, 
+    subtitle?: string, 
+    onPress?: () => void
+  ) => (
+    <TouchableOpacity 
+      style={styles.settingItem} 
+      onPress={onPress || (() => handleFeatureNotReady(title))}
+    >
       <View style={styles.settingIconContainer}>
         <Ionicons name={icon} size={22} color="rgba(255,255,255,0.7)" />
       </View>
@@ -67,7 +110,7 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.displayName}>
+          <Text style={[styles.displayName, isConnected && { fontFamily: 'DMMono_400Regular', fontSize: 20 }]}>
             {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Not Connected'}
           </Text>
           <TouchableOpacity onPress={handleOpenWallet} style={styles.walletPill}>
@@ -94,11 +137,11 @@ export default function ProfileScreen() {
           <Text style={styles.groupLabel}>Support</Text>
           {renderSettingItem('help-circle-outline', 'Help Center')}
           {renderSettingItem('chatbubble-ellipses-outline', 'Contact Support')}
-          {renderSettingItem('information-circle-outline', 'About Molfi')}
+          {renderSettingItem('information-circle-outline', 'About Molfi', undefined, () => handleSupport('About'))}
         </View>
 
         <TouchableOpacity 
-          onPress={handleOpenWallet}
+          onPress={handleDisconnect}
           style={styles.logoutButton}
         >
           <Text style={styles.logoutText}>Disconnect Wallet</Text>
