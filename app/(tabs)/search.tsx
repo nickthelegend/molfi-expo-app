@@ -13,6 +13,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import Animated, { 
   FadeIn, 
   useAnimatedStyle, 
@@ -156,13 +157,21 @@ export default function SearchScreen() {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Discover</Text>
-            <Text style={styles.headerSubtitle}>Markets & Assets</Text>
+          <View style={styles.logoRow}>
+            <Image 
+              source={require('@/assets/logo/logo.png')} 
+              style={styles.logo}
+              contentFit="contain"
+            />
+            <Text style={styles.headerTitle}>Molfi AI</Text>
           </View>
           <TouchableOpacity style={styles.filterButton}>
             <Ionicons name="options-outline" size={20} color="#fff" />
           </TouchableOpacity>
+        </View>
+        <View style={styles.subHeader}>
+          <Text style={styles.headerTitleMain}>Discover</Text>
+          <Text style={styles.headerSubtitle}>Markets & Assets</Text>
         </View>
 
         <View style={styles.searchSection}>
@@ -277,7 +286,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logo: {
+    width: 32,
+    height: 32,
+  },
   headerTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 20,
+    color: '#fff',
+  },
+  subHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  headerTitleMain: {
     fontFamily: 'Syne_700Bold',
     fontSize: 28,
     color: '#fff',

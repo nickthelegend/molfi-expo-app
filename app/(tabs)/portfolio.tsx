@@ -128,10 +128,20 @@ export default function PortfolioScreen() {
       >
         {/* Header Row */}
         <View style={styles.header}>
-          <Text style={styles.username}>{formatAddress(address)}</Text>
-          <TouchableOpacity>
-            <Ionicons name="notifications-outline" size={24} color="rgba(255,255,255,0.5)" />
-          </TouchableOpacity>
+          <View style={styles.logoRow}>
+            <Image 
+              source={require('@/assets/logo/logo.png')} 
+              style={styles.logo}
+              contentFit="contain"
+            />
+            <Text style={styles.headerTitle}>Molfi AI</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.username}>{formatAddress(address)}</Text>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Balance Hero */}
@@ -228,7 +238,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 15,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logo: {
+    width: 32,
+    height: 32,
+  },
+  headerTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 20,
+    color: '#fff',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   username: {
     fontFamily: 'KHTeka',
