@@ -1,19 +1,21 @@
 {
   "expo": {
-    "name": "appkit-expo-wagmi",
-    "slug": "appkit-expo-wagmi",
+    "name": "Molfi",
+    "slug": "molfi-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "appkitexpowagmi",
+    "scheme": "molfi",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.molfi.app"
     },
     "android": {
+      "package": "com.molfi.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1a1a1a"
       }
     },
     "web": {

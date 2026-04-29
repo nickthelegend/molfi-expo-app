@@ -40,19 +40,19 @@ const clipboardClient = {
 const queryClient = new QueryClient();
 
 // 1. Get projectId at https://dashboard.reown.com
-const projectId = "b8e39dfb697ba26ac5a77a4b29b35604"; // This project ID will only work for Expo Go. Use your own project ID for production.
+const projectId = "22260d6680223859f9b07dadfafce02d"; 
 
 
 
 // 2. Create config
 const metadata = {
-  name: "AppKit RN",
-  description: "AppKit RN Example",
-  url: "https://reown.com/appkit",
-  icons: ["https://avatars.githubusercontent.com/u/179229932"],
+  name: "Molfi",
+  description: "AI-Native Crypto Trading Ecosystem",
+  url: "https://molfi.app",
+  icons: ["https://avatars.githubusercontent.com/u/179229932"], // Update with Molfi icon URL later
   redirect: {
-    native: "YOUR_APP_SCHEME://",
-    universal: "YOUR_APP_UNIVERSAL_LINK.com",
+    native: "molfi://",
+    universal: "molfi.app",
   },
 };
 
