@@ -97,7 +97,7 @@ function RootContent() {
       if (!isConnected && !inConnectWallet) {
         router.replace('/connect-wallet');
       } else if (isConnected && (inConnectWallet || inOnboardingGroup)) {
-        router.replace('/(tabs)');
+        router.replace('/dashboard');
       }
     }
   }, [hasCompletedOnboarding, isConnected, isLoading, segments]);
@@ -106,7 +106,7 @@ function RootContent() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="connect-wallet" />
-      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="dashboard" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
