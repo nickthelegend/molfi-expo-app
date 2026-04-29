@@ -49,12 +49,14 @@ export default function NewAgentScreen() {
   // Form State
   const [name, setName] = useState('');
   const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
+  const [marketType, setMarketType] = useState<'tokens' | 'prediction'>('tokens');
   const [strategy, setStrategy] = useState('');
   const [freeFormPrompt, setFreeFormPrompt] = useState('');
   const [funding, setFunding] = useState('');
   const [riskLevel, setRiskLevel] = useState(5);
   const [maxPositionPct, setMaxPositionPct] = useState(10);
   const [tradingPairs, setTradingPairs] = useState(['ETH/USDC', 'BTC/USDC']);
+  const [predictionTopics, setPredictionTopics] = useState(['Crypto', 'Politics']);
 
   // Animation
   const slideOffset = useSharedValue(0);
@@ -196,8 +198,34 @@ export default function NewAgentScreen() {
           <ScrollView contentContainerStyle={styles.stepContent}>
             <Text style={styles.sectionTitle}>Select Strategy</Text>
             
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Trading Market</Text>
+              <View style={styles.marketToggleRow}>
+                <TouchableOpacity 
+                  style={[styles.marketToggle, marketType === 'tokens' && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                  onPress={() => { setMarketType('tokens'); setStrategy(''); }}
+                >
+                  <Ionicons name="swap-horizontal" size={20} color={marketType === 'tokens' ? '#fff' : 'rgba(255,255,255,0.4)'} />
+                  <Text style={[styles.marketToggleText, marketType === 'tokens' && { color: '#fff' }]}>Tokens</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.marketToggle, marketType === 'prediction' && { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                  onPress={() => { setMarketType('prediction'); setStrategy(''); }}
+                >
+                  <Ionicons name="stats-chart" size={20} color={marketType === 'prediction' ? '#fff' : 'rgba(255,255,255,0.4)'} />
+                  <Text style={[styles.marketToggleText, marketType === 'prediction' && { color: '#fff' }]}>Prediction</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.label}>{marketType === 'tokens' ? 'Token Strategies' : 'Prediction Strategies'}</Text>
             <View style={styles.strategyGrid}>
-              {STRATEGIES.map(item => (
+              {(marketType === 'tokens' ? STRATEGIES : [
+                { id: 'Market Making', name: 'Market Making', desc: 'Provide Liquidity', icon: 'water-outline' },
+                { id: 'Event Arbitrage', name: 'Event Arb', desc: 'Cross-market arb', icon: 'git-compare-outline' },
+                { id: 'Sentiment AI', name: 'Sentiment', desc: 'Social Media Analysis', icon: 'chatbubbles-outline' },
+                { id: 'AI Free Form', name: 'AI Free Form', desc: 'Custom Logic', icon: 'brain-outline' },
+              ]).map(item => (
                 <TouchableOpacity 
                   key={item.id}
                   style={[styles.strategyCard, strategy === item.id && { borderColor: theme.primary, backgroundColor: 'rgba(255,255,255,0.05)' }]}
@@ -258,6 +286,30 @@ export default function NewAgentScreen() {
               />
               <Text style={styles.helperText}>Available: {balance ? parseFloat(balance.formatted).toFixed(2) : '0.00'} USDC</Text>
             </View>
+
+            {marketType === 'tokens' ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Trading Pairs</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="ETH/USDC, BTC/USDC"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={tradingPairs.join(', ')}
+                  onChangeText={(txt) => setTradingPairs(txt.split(',').map(s => s.trim()))}
+                />
+              </View>
+            ) : (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Prediction Topics</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Politics, Crypto, Sports"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={predictionTopics.join(', ')}
+                  onChangeText={(txt) => setPredictionTopics(txt.split(',').map(s => s.trim()))}
+                />
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Risk Level: {riskLevel}/10</Text>
@@ -336,6 +388,9 @@ const styles = StyleSheet.create({
   avatarLarge: { width: 80, height: 80, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   avatarLargeText: { color: '#fff', fontFamily: 'Syne-Bold', fontSize: 32 },
   previewName: { fontFamily: 'Syne-Bold', fontSize: 20, color: '#fff' },
+  marketToggleRow: { flexDirection: 'row', gap: 12 },
+  marketToggle: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingVertical: 14, gap: 10 },
+  marketToggleText: { fontFamily: 'Syne-Bold', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
   strategyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   strategyCard: { width: (width - 60) / 2, padding: 20, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 12, position: 'relative' },
   strategyName: { fontFamily: 'Syne-Bold', fontSize: 16, color: '#fff' },

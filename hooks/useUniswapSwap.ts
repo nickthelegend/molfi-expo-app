@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
-import { useSendTransaction, useSignTypedData } from 'wagmi';
+import { useAccount as useAppKitAccount, useSendTransaction, useSignTypedData, useSwitchChain } from 'wagmi';
 import { Address, parseUnits, isAddress, isHex } from 'viem';
 
 const TRADING_API_BASE = 'https://trade-api.gateway.uniswap.org/v1';
@@ -18,9 +17,10 @@ export type QuoteParams = {
 };
 
 export function useUniswapSwap() {
-  const { address } = useAppKitAccount();
+  const { address, chainId } = useAppKitAccount();
   const { sendTransactionAsync } = useSendTransaction();
   const { signTypedDataAsync } = useSignTypedData();
+  const { switchChainAsync } = useSwitchChain();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,11 +109,19 @@ export function useUniswapSwap() {
       if (quoteResponse._provider === 'OKU') {
         const { swap } = quoteResponse;
         if (!swap) throw new Error("No execution data from Oku");
+        
+        // Chain Check
+        const targetChainId = quoteResponse.chainId || 16661;
+        if (chainId !== targetChainId) {
+          console.log(`[useUniswapSwap] Switching to chain ${targetChainId} for Oku swap`);
+          await switchChainAsync({ chainId: targetChainId });
+        }
+
         const hash = await sendTransactionAsync({
           to: swap.to as Address,
           data: swap.data as `0x${string}`,
           value: BigInt(swap.value || '0'),
-          chainId: quoteResponse.chainId || 16661,
+          chainId: targetChainId,
         });
         return hash;
       }
@@ -156,6 +164,14 @@ export function useUniswapSwap() {
       if (!swapResponse.ok) throw new Error(swapData.message || swapData.detail || 'Failed to prepare swap');
 
       const { swap } = swapData;
+      
+      // Chain Check
+      const targetChainId = swap.chainId;
+      if (chainId !== targetChainId) {
+        console.log(`[useUniswapSwap] Switching to chain ${targetChainId} for Uniswap swap`);
+        await switchChainAsync({ chainId: targetChainId });
+      }
+
       const hash = await sendTransactionAsync({
         to: swap.to as Address,
         data: swap.data as `0x${string}`,

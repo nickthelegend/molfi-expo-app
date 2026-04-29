@@ -316,8 +316,33 @@ export default function ChatScreen() {
           )}
         </View>
 
+        {/* Shortcuts / Slash Commands */}
+        {inputText.startsWith('/') && (
+          <View style={[styles.shortcutsContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[
+                { label: 'Hot Tokens', cmd: '/trending' },
+                { label: 'My Portfolio', cmd: '/portfolio' },
+                { label: 'Swap ETH', cmd: '/swap eth to usdc' },
+                { label: 'Top Gainers', cmd: '/gainers' },
+                { label: 'Agent Status', cmd: '/agents' },
+              ].map((item, idx) => (
+                <TouchableOpacity 
+                  key={idx} 
+                  style={[styles.shortcutChip, { backgroundColor: theme.surface }]}
+                  onPress={() => {
+                    setInputText(item.cmd + ' ');
+                  }}
+                >
+                  <Text style={[styles.shortcutText, { color: theme.text }]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Input Area */}
-        <View style={[styles.inputContainer, { paddingBottom: 110 }]}>
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 10 }]}>
           <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TextInput 
               placeholder="Ask anything, / for quick prompts" 
@@ -326,13 +351,10 @@ export default function ChatScreen() {
               value={inputText}
               onChangeText={setInputText}
               multiline
+              textAlignVertical="top"
             />
             
             <View style={styles.inputActions}>
-              <TouchableOpacity style={[styles.plusButton, { backgroundColor: theme.card }]}>
-                <Ionicons name="add" size={24} color={theme.textMuted} />
-              </TouchableOpacity>
-              
               <TouchableOpacity 
                 style={[styles.micButton, { backgroundColor: theme.primary }, (isLoading || !inputText.trim()) && { opacity: 0.5 }]}
                 onPress={() => handleSend(inputText)}
@@ -463,32 +485,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   inputWrapper: {
-    borderRadius: 32,
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 8,
+    padding: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 60,
-    maxHeight: 120,
+    alignItems: 'flex-end',
+    minHeight: 100,
+    maxHeight: 200,
   },
   input: {
     flex: 1,
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Syne-Regular',
     fontSize: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   inputActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingRight: 8,
-  },
-  plusButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingBottom: 4,
   },
   micButton: {
     width: 44,
@@ -496,5 +512,25 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  shortcutsContainer: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    zIndex: 100,
+  },
+  shortcutChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  shortcutText: {
+    fontFamily: 'Syne-Bold',
+    fontSize: 13,
   },
 });

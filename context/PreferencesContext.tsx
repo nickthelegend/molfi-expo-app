@@ -43,19 +43,20 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const updatePreferences = async (newPrefs: Partial<Preferences>) => {
-    if (!address) return;
+    // Optimistic Update
+    setPreferences(prev => ({ ...prev, ...newPrefs }));
+
+    if (!address) return; // Still update local state for guests, but skip API
+    
     try {
-      const response = await fetch(`${API_URL}/preferences`, {
+      await fetch(`${API_URL}/preferences`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: address, ...newPrefs })
       });
-      const data = await response.json();
-      if (data.success) {
-        setPreferences(prev => ({ ...prev, ...newPrefs }));
-      }
     } catch (e) {
-      console.error("Failed to update preferences:", e);
+      console.error("Failed to update preferences on server:", e);
+      // Optional: Rollback if critical, but for simple preferences we can stay optimistic
     }
   };
 

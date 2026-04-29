@@ -20,6 +20,7 @@ import { API_URL } from '@/constants/Config';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +49,7 @@ export default function AgentsScreen() {
   const theme = Colors[colorScheme];
   const { address } = useAppKitAccount();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -185,7 +187,32 @@ export default function AgentsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      {/* Molfi Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.headerTitleRow}>
+          <Image 
+            source={require('@/assets/logo/logo.png')} 
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <View>
+            <Text style={styles.gmText}>GM,</Text>
+            <Text style={styles.usernameText}>
+              {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer'}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/profile')}>
+           <View style={[styles.avatarCircle, { borderColor: 'rgba(255,255,255,0.1)' }]}>
+             <Image 
+               source={{ uri: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${address || '0x0'}` }} 
+               style={styles.headerAvatar}
+             />
+           </View>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.screenHeader}>
         <View>
           <Text style={styles.title}>Agents</Text>
           <Text style={styles.subtitle}>{agents.filter(a => a.status === 'active').length} active agents</Text>
@@ -237,38 +264,52 @@ export default function AgentsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20 },
-  title: { fontFamily: 'Syne_700Bold', fontSize: 28, color: '#fff' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 24, 
+    paddingBottom: 20,
+    backgroundColor: '#0A0A0A'
+  },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 36, height: 36 },
+  gmText: { fontFamily: 'Syne-Regular', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 14 },
+  usernameText: { fontFamily: 'Syne-Bold', fontSize: 15, color: '#fff' },
+  avatarCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, overflow: 'hidden', padding: 2 },
+  headerAvatar: { width: '100%', height: '100%', borderRadius: 20 },
+  screenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
+  title: { fontFamily: 'Syne-Bold', fontSize: 28, color: '#fff' },
   subtitle: { fontFamily: 'KHTeka', fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
   createBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, gap: 6 },
-  createBtnText: { fontFamily: 'Syne_600SemiBold', fontSize: 14, color: '#fff' },
+  createBtnText: { fontFamily: 'Syne-Medium', fontSize: 14, color: '#fff' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
   listContainer: { paddingHorizontal: 20 },
   skeletonCard: { marginBottom: 16 },
   agentCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   avatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontFamily: 'Syne_700Bold', fontSize: 20 },
+  avatarText: { color: '#fff', fontFamily: 'Syne-Bold', fontSize: 20 },
   headerInfo: { flex: 1, marginLeft: 12 },
-  agentName: { fontFamily: 'Syne_700Bold', fontSize: 17, color: '#fff' },
+  agentName: { fontFamily: 'Syne-Bold', fontSize: 17, color: '#fff' },
   strategyText: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, gap: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontFamily: 'Syne_600SemiBold', fontSize: 11 },
+  statusText: { fontFamily: 'Syne-Medium', fontSize: 11 },
   statsGrid: { flexDirection: 'row', marginBottom: 16 },
   statItem: { flex: 1 },
   statLabel: { fontFamily: 'KHTeka', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 4 },
-  statValue: { fontFamily: 'DMMono_400Regular', fontSize: 16, color: '#fff' },
+  statValue: { fontFamily: 'DM-Mono-Regular', fontSize: 16, color: '#fff' },
   footerInfo: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
   footerText: { fontFamily: 'KHTeka', fontSize: 12, color: 'rgba(255,255,255,0.3)' },
   actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', height: 44, borderRadius: 12, gap: 8 },
-  actionBtnText: { fontFamily: 'Syne_600SemiBold', fontSize: 13, color: '#fff' },
+  actionBtnText: { fontFamily: 'Syne-Medium', fontSize: 13, color: '#fff' },
   destroyBtn: { backgroundColor: 'rgba(255,59,48,0.05)' },
   emptyState: { alignItems: 'center', marginTop: 100, paddingHorizontal: 40 },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  emptyTitle: { fontFamily: 'Syne_700Bold', fontSize: 20, color: '#fff', marginBottom: 12 },
+  emptyTitle: { fontFamily: 'Syne-Bold', fontSize: 20, color: '#fff', marginBottom: 12 },
   emptySubtitle: { fontFamily: 'KHTeka', fontSize: 15, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
   emptyBtn: { paddingHorizontal: 32, paddingVertical: 16, borderRadius: 28 },
-  emptyBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' }
+  emptyBtnText: { fontFamily: 'Syne-Bold', fontSize: 16, color: '#fff' }
 });
