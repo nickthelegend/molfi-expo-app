@@ -1,330 +1,218 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  TextInput, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView,
+  SafeAreaView, 
   Dimensions,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageBubble } from '@/components/chat/MessageBubble';
-import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { callGroq, getSystemPrompt, parseIntent, Message as GroqMessage } from '@/hooks/useGroqChat';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
-import { usePreferences } from '@/hooks/usePreferences';
+import { useBalance } from 'wagmi';
 import { API_URL } from '@/constants/Config';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-export type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  intent: any | null;
-  intentPayload: any | null;
-  timestamp: Date;
-  status?: 'sending' | 'sent' | 'error';
-};
-
-export default function ChatScreen() {
-  const { address } = useAppKitAccount();
-  const { preferences, updatePreferences } = usePreferences();
-  const { sessionId: paramSessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
+export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
-  const flatListRef = useRef<FlatList>(null);
-
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(paramSessionId || null);
-  const [inputText, setInputText] = useState('');
-
-  const isInitialState = messages.length === 0 && !isLoading;
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { address } = useAppKitAccount();
+  const { data: balance, isLoading: isBalanceLoading, refetch: refetchBalance } = useBalance({ address: address as `0x${string}` });
+  
+  const [agents, setAgents] = useState([]);
+  const [notifications, setNotifications] = useState([
+    { id: '1', title: 'Agent "Aura" executed a swap', time: '2m ago', type: 'swap' },
+    { id: '2', title: 'New trading task started', time: '15m ago', type: 'task' },
+    { id: '3', title: 'Portfolio grew by 2.4% today', time: '1h ago', type: 'stats' },
+  ]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
-    if (paramSessionId) {
-      loadSession(paramSessionId);
-    } else if (address) {
-      if (!sessionId) createNewSession();
-    } else {
-      setSessionId("guest-session");
+    if (address) {
+      fetchAgents();
     }
-  }, [paramSessionId, address]);
+  }, [address]);
 
-  const createNewSession = async () => {
-    if (!address) return;
+  const fetchAgents = async () => {
     try {
-      const response = await fetch(`${API_URL}/chat/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: address, title: "New Chat" })
-      });
-      const data = await response.json();
+      const res = await fetch(`${API_URL}/agents?walletAddress=${address}`);
+      const data = await res.json();
       if (data.success) {
-        setSessionId(data.data._id);
-        setMessages([]);
+        setAgents(data.data);
       }
     } catch (e) {
-      console.error("Failed to create session:", e);
-      setSessionId("demo-session"); 
+      console.error("Failed to fetch agents:", e);
     }
   };
 
-  const loadSession = async (id: string) => {
-    try {
-      const response = await fetch(`${API_URL}/chat/sessions/${id}/messages`);
-      const data = await response.json();
-      if (data.success) {
-        const loadedMessages = data.data.map((m: any) => ({
-          id: m._id,
-          role: m.role,
-          content: m.content,
-          intent: m.intent,
-          intentPayload: m.intentPayload,
-          timestamp: new Date(m.timestamp)
-        }));
-        setMessages(loadedMessages.reverse());
-        setSessionId(id);
-      }
-    } catch (e) {
-      console.error("Failed to load messages:", e);
-    }
-  };
-
-  const handleSend = async (text: string) => {
-    const messageToSend = text || inputText;
-    if (!messageToSend.trim() || !sessionId || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: messageToSend,
-      intent: null,
-      intentPayload: null,
-      timestamp: new Date(),
-      status: 'sending'
-    };
-
-    setMessages(prev => [userMessage, ...prev]);
-    setInputText('');
-    setIsLoading(true);
-
-    try {
-      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
-        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            walletAddress: address,
-            role: 'user',
-            content: messageToSend
-          })
-        });
-
-        if (messages.length === 0) {
-          await fetch(`${API_URL}/chat/sessions/${sessionId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: messageToSend.slice(0, 50) })
-          });
-        }
-      }
-
-      const groqMessages: GroqMessage[] = messages
-        .slice()
-        .reverse()
-        .map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content
-        }));
-      groqMessages.push({ role: 'user', content: messageToSend });
-
-      const systemPrompt = getSystemPrompt(address || '0x...', preferences);
-      const rawResponse = await callGroq(groqMessages, systemPrompt);
-      const { text: cleanText, intent } = parseIntent(rawResponse);
-
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: cleanText,
-        intent: intent,
-        intentPayload: intent?.payload || null,
-        timestamp: new Date(),
-        status: 'sent'
-      };
-
-      if (address && sessionId !== 'demo-session' && sessionId !== 'guest-session') {
-        await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            walletAddress: address,
-            role: 'assistant',
-            content: cleanText,
-            intent: intent,
-            intentPayload: intent?.payload || null
-          })
-        });
-      }
-
-      setMessages(prev => [assistantMessage, ...prev]);
-
-      if (intent?.type === 'PREFERENCE_UPDATE') {
-        updatePreferences(intent.payload);
-      }
-
-    } catch (e) {
-      console.error("Chat error:", e);
-      setMessages(prev => [
-        {
-          id: 'err-' + Date.now(),
-          role: 'assistant',
-          content: "Sorry, I encountered an error. Please check your connection or Groq API key.",
-          intent: null,
-          intentPayload: null,
-          timestamp: new Date()
-        },
-        ...prev
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const startNewChat = () => {
-    setSessionId(null);
-    setMessages([]);
-    router.setParams({ sessionId: undefined });
-    createNewSession();
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([refetchBalance(), fetchAgents()]);
+    setIsRefreshing(false);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoRow}>
+          <View style={styles.headerTitleRow}>
             <Image 
               source={require('@/assets/logo/logo.png')} 
               style={styles.logo}
               contentFit="contain"
             />
-            <Text style={[styles.logoText, { color: theme.text }]}>Molfi AI</Text>
-          </View>
-          
-          <View style={styles.headerIcons}>
-            <TouchableOpacity onPress={startNewChat} style={[styles.headerIconButton, { backgroundColor: theme.card }]}>
-              <Ionicons name="create-outline" size={22} color={theme.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/chat-history')} style={[styles.headerIconButton, { backgroundColor: theme.card }]}>
-              <Ionicons name="time-outline" size={22} color={theme.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.headerIconButton, { backgroundColor: theme.card }]}>
-              <Ionicons name="hardware-chip-outline" size={22} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          {isInitialState ? (
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-              {/* Main Greeting */}
-              <View style={styles.greetingContainer}>
-                <Text style={[styles.greetingTitle, { color: theme.text }]}>GM,</Text>
-                <Text style={[styles.greetingSubtitle, { color: theme.textMuted }]}>How are we pumping that bag today?</Text>
-              </View>
-
-              {/* Suggestion Cards */}
-              <View style={styles.cardGrid}>
-                <TouchableOpacity style={[styles.card, { backgroundColor: theme.card }]} onPress={() => handleSend("What are the hottest tokens right now?")}>
-                  <View style={styles.cardIconHeader}>
-                    <Ionicons name="flame-outline" size={18} color={theme.text} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Hot tokens</Text>
-                  </View>
-                  <Text style={[styles.cardDesc, { color: theme.textMuted }]}>Trending and most hyped assets right now</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.card, { backgroundColor: theme.card }]} onPress={() => handleSend("Show my performance")}>
-                  <View style={styles.cardIconHeader}>
-                    <Ionicons name="stats-chart-outline" size={18} color={theme.text} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>My Performance</Text>
-                  </View>
-                  <Text style={[styles.cardDesc, { color: theme.textMuted }]}>Track your growth and portfolio over a week</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              inverted
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <MessageBubble 
-                  role={item.role} 
-                  content={item.content} 
-                  intent={item.intent} 
-                />
-              )}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20 }}
-              ListHeaderComponent={isLoading ? <TypingIndicator /> : null}
-            />
-          )}
-        </View>
-
-        {/* Input Area */}
-        <View style={[styles.inputContainer, { paddingBottom: 110 }]}>
-          <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <TextInput 
-              placeholder="Ask anything, / for quick prompts" 
-              placeholderTextColor={theme.textMuted}
-              style={[styles.input, { color: theme.text }]}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-            />
-            
-            <View style={styles.inputActions}>
-              <TouchableOpacity style={[styles.plusButton, { backgroundColor: theme.card }]}>
-                <Ionicons name="add" size={24} color={theme.textMuted} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.micButton, { backgroundColor: theme.primary }, (isLoading || !inputText.trim()) && { opacity: 0.5 }]}
-                onPress={() => handleSend(inputText)}
-                disabled={isLoading || !inputText.trim()}
-              >
-                {!address ? (
-                   <Ionicons name="wallet-outline" size={20} color="#fff" />
-                ) : isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name={inputText.trim() ? "arrow-up" : "mic"} size={20} color="#fff" />
-                )}
-              </TouchableOpacity>
+            <View>
+              <Text style={[styles.greeting, { color: theme.textMuted }]}>Good Morning</Text>
+              <Text style={[styles.userName, { color: theme.text }]}>
+                {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer'}
+              </Text>
             </View>
           </View>
+          <TouchableOpacity onPress={() => router.push('/profile')}>
+             <View style={[styles.avatarCircle, { borderColor: theme.border }]}>
+               <Image 
+                 source={`https://api.dicebear.com/7.x/identicon/svg?seed=${address || 'molfi'}`} 
+                 style={styles.avatar}
+               />
+             </View>
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Portfolio Card */}
+        <Animated.View entering={FadeInDown.delay(100)} style={styles.portfolioCardContainer}>
+          <LinearGradient
+            colors={[theme.primary, '#8A5CF5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.portfolioCard}
+          >
+            <View style={styles.portfolioInfo}>
+              <Text style={styles.portfolioLabel}>Total Balance</Text>
+              {isBalanceLoading ? (
+                <ActivityIndicator color="#FFF" style={{ alignSelf: 'flex-start', marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.portfolioValue}>
+                  {balance ? `${parseFloat(balance.formatted).toFixed(4)} ${balance.symbol}` : '$0.00'}
+                </Text>
+              )}
+              <View style={styles.portfolioChange}>
+                <Ionicons name="trending-up" size={14} color="#FFF" />
+                <Text style={styles.changeText}>+5.2% (24h)</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.chartButton}>
+              <Ionicons name="stats-chart" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Quick Actions */}
+        <View style={styles.actionsRow}>
+          <ActionItem icon="swap-horizontal" label="Swap" onPress={() => router.push('/chat')} theme={theme} />
+          <ActionItem icon="arrow-up" label="Send" onPress={() => router.push('/chat')} theme={theme} />
+          <ActionItem icon="repeat" label="Bridge" onPress={() => router.push('/chat')} theme={theme} />
+          <ActionItem icon="grid" label="More" onPress={() => {}} theme={theme} />
+        </View>
+
+        {/* Active Agents */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Active Agents</Text>
+          <TouchableOpacity onPress={() => router.push('/agents')}>
+            <Text style={[styles.viewAll, { color: theme.primary }]}>View All</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.agentsScroll}>
+          {agents.length > 0 ? agents.map((agent: any, index) => (
+            <Animated.View key={agent._id} entering={SlideInRight.delay(200 + index * 100)}>
+              <TouchableOpacity style={[styles.agentCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push(`/agent/${agent._id}`)}>
+                <View style={[styles.agentAvatar, { backgroundColor: agent.avatarColor || theme.primary }]}>
+                  <Text style={styles.agentAvatarText}>{agent.name[0]}</Text>
+                </View>
+                <Text style={[styles.agentName, { color: theme.text }]} numberOfLines={1}>{agent.name}</Text>
+                <Text style={[styles.agentStatus, { color: '#00C896' }]}>Active</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )) : (
+            <TouchableOpacity style={[styles.createAgentCard, { backgroundColor: theme.card, borderColor: theme.border, borderStyle: 'dashed' }]} onPress={() => router.push('/agents')}>
+              <Ionicons name="add" size={24} color={theme.textMuted} />
+              <Text style={[styles.createAgentText, { color: theme.textMuted }]}>New Agent</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
+        {/* Recent Notifications */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Activity</Text>
+        </View>
+        <View style={styles.notificationsContainer}>
+          {notifications.map((notif, index) => (
+            <Animated.View key={notif.id} entering={FadeInDown.delay(400 + index * 100)} style={[styles.notificationItem, { borderBottomColor: theme.border }]}>
+              <View style={[styles.notifIcon, { backgroundColor: theme.surface }]}>
+                <Ionicons 
+                  name={notif.type === 'swap' ? 'swap-horizontal' : notif.type === 'task' ? 'list' : 'stats-chart'} 
+                  size={18} 
+                  color={theme.primary} 
+                />
+              </View>
+              <View style={styles.notifContent}>
+                <Text style={[styles.notifTitle, { color: theme.text }]}>{notif.title}</Text>
+                <Text style={[styles.notifTime, { color: theme.textMuted }]}>{notif.time}</Text>
+              </View>
+            </Animated.View>
+          ))}
+        </View>
+
+        {/* Chat CTA */}
+        <Animated.View entering={FadeInDown.delay(700)} style={styles.chatCtaContainer}>
+          <TouchableOpacity 
+            style={[styles.chatCta, { backgroundColor: theme.surface, borderColor: theme.primary + '44' }]}
+            onPress={() => router.push('/chat')}
+          >
+            <View style={[styles.chatCtaIcon, { backgroundColor: theme.primary }]}>
+              <Ionicons name="chatbubble" size={24} color="#FFF" />
+            </View>
+            <View style={styles.chatCtaText}>
+              <Text style={[styles.chatCtaTitle, { color: theme.text }]}>Chat with Molfi</Text>
+              <Text style={[styles.chatCtaDesc, { color: theme.textMuted }]}>AI Assistant for all your on-chain needs</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+          </TouchableOpacity>
+        </Animated.View>
+
+      </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ActionItem({ icon, label, onPress, theme }: { icon: any; label: string; onPress: () => void; theme: any }) {
+  return (
+    <TouchableOpacity style={styles.actionItem} onPress={onPress}>
+      <View style={[styles.actionIcon, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Ionicons name={icon} size={22} color={theme.text} />
+      </View>
+      <Text style={[styles.actionLabel, { color: theme.text }]}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -333,115 +221,237 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A0A0A',
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    marginBottom: 30,
   },
-  logoRow: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   logo: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
   },
-  logoText: {
+  greeting: {
+    fontFamily: 'Syne_400Regular',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  userName: {
     fontFamily: 'Syne_700Bold',
-    fontSize: 20,
+    fontSize: 22,
   },
-  headerIcons: {
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+  },
+  portfolioCardContainer: {
+    marginBottom: 30,
+  },
+  portfolioCard: {
+    borderRadius: 24,
+    padding: 24,
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  headerIconButton: {
+  portfolioInfo: {
+    flex: 1,
+  },
+  portfolioLabel: {
+    fontFamily: 'Syne_400Regular',
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  portfolioValue: {
+    fontFamily: 'DMMono_500Medium',
+    color: '#FFF',
+    fontSize: 28,
+    marginBottom: 12,
+  },
+  portfolioChange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  changeText: {
+    fontFamily: 'KHTeka',
+    color: '#FFF',
+    fontSize: 12,
+  },
+  chartButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 35,
+  },
+  actionItem: {
+    alignItems: 'center',
+    width: (width - 40) / 4,
+  },
+  actionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionLabel: {
+    fontFamily: 'Syne_500Medium',
+    fontSize: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 18,
+  },
+  viewAll: {
+    fontFamily: 'Syne_600SemiBold',
+    fontSize: 14,
+  },
+  agentsScroll: {
+    gap: 12,
+    paddingRight: 20,
+    marginBottom: 30,
+  },
+  agentCard: {
+    width: 100,
+    height: 120,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agentAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  agentAvatarText: {
+    color: '#FFF',
+    fontFamily: 'Syne_700Bold',
+    fontSize: 18,
+  },
+  agentName: {
+    fontFamily: 'Syne_600SemiBold',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  agentStatus: {
+    fontFamily: 'KHTeka',
+    fontSize: 10,
+  },
+  createAgentCard: {
+    width: 100,
+    height: 120,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  createAgentText: {
+    fontFamily: 'Syne_500Medium',
+    fontSize: 11,
+  },
+  notificationsContainer: {
+    marginBottom: 30,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  notifIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  greetingContainer: {
-    marginBottom: 60,
-  },
-  greetingTitle: {
-    fontFamily: 'Syne_700Bold',
-    fontSize: 48,
-  },
-  greetingSubtitle: {
-    fontFamily: 'Syne_400Regular',
-    fontSize: 32,
-    lineHeight: 40,
-  },
-  cardGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 40,
-  },
-  card: {
+  notifContent: {
     flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    height: 120,
-    justifyContent: 'space-between',
   },
-  cardIconHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  notifTitle: {
+    fontFamily: 'Syne_500Medium',
+    fontSize: 14,
+    marginBottom: 2,
   },
-  cardTitle: {
-    fontFamily: 'Syne_600SemiBold',
-    fontSize: 16,
+  notifTime: {
+    fontFamily: 'KHTeka',
+    fontSize: 12,
   },
-  cardDesc: {
-    fontFamily: 'Syne_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
+  chatCtaContainer: {
+    marginTop: 10,
   },
-  inputContainer: {
-    paddingHorizontal: 20,
-  },
-  inputWrapper: {
-    borderRadius: 32,
+  chatCta: {
+    borderRadius: 24,
     borderWidth: 1,
-    padding: 8,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 60,
-    maxHeight: 120,
   },
-  input: {
+  chatCtaIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  chatCtaText: {
     flex: 1,
-    fontFamily: 'Syne_400Regular',
+  },
+  chatCtaTitle: {
+    fontFamily: 'Syne_700Bold',
     fontSize: 16,
-    paddingHorizontal: 16,
+    marginBottom: 2,
   },
-  inputActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingRight: 8,
-  },
-  plusButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  micButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+  chatCtaDesc: {
+    fontFamily: 'Syne_400Regular',
+    fontSize: 12,
   },
 });

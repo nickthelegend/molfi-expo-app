@@ -103,8 +103,8 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ focused, color }) => (
             <TabIcon 
-              name="chatbubble-outline" 
-              activeName="chatbubble" 
+              name="home-outline" 
+              activeName="home" 
               focused={focused} 
               color={color} 
             />
