@@ -16,6 +16,10 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import * as Reanimated from 'react-native-reanimated';
+if (!(Reanimated as any).useWorkletCallback) {
+  (Reanimated as any).useWorkletCallback = (cb: any) => cb;
+}
 import * as Clipboard from 'expo-clipboard';
 import { Syne_400Regular, Syne_600SemiBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { DMMono_400Regular } from '@expo-google-fonts/dm-mono';

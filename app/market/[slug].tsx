@@ -47,16 +47,9 @@ export default function MarketDetailScreen() {
     setBettingVisible(true);
   };
 
-  const fetchData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      // Fetch Market
-      const mRes = await fetch(`https://gamma-api.polymarket.com/markets?slug=${slug}`);
-      const mData = await mRes.json();
-      const marketItem = mData[0];
-      setMarket(marketItem);
-
-      if (marketItem?.clobTokenIds) {
+  const fetchSupplementalData = useCallback(async (marketItem: any) => {
+    if (marketItem?.clobTokenIds) {
+      try {
         // Fetch Orderbook (YES token)
         const bRes = await fetch(`https://clob.polymarket.com/book?token_id=${marketItem.clobTokenIds[0]}`);
         const bData = await bRes.json();
@@ -66,13 +59,41 @@ export default function MarketDetailScreen() {
         const hRes = await fetch(`https://clob.polymarket.com/prices-history?market=${marketItem.clobTokenIds[0]}&interval=${selectedInterval}&fidelity=60`);
         const hData = await hRes.json();
         setHistory(hData.history || []);
+      } catch (e) {
+        console.error('Supplemental data fetch error:', e);
       }
+    }
+  }, [selectedInterval]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      // Fetch Market
+      const encodedSlug = typeof slug === 'string' ? encodeURIComponent(slug) : slug;
+      const mRes = await fetch(`https://gamma-api.polymarket.com/markets?slug=${encodedSlug}`);
+      const mData = await mRes.json();
+      
+      if (!mRes.ok || !mData || mData.length === 0) {
+        // Fallback: search by slug if direct lookup fails
+        const searchRes = await fetch(`https://gamma-api.polymarket.com/markets?active=true&limit=1&q=${encodedSlug}`);
+        const searchData = await searchRes.json();
+        if (searchData && searchData.length > 0) {
+          setMarket(searchData[0]);
+          fetchSupplementalData(searchData[0]);
+          return;
+        }
+        throw new Error('Market not found');
+      }
+
+      const marketItem = mData[0];
+      setMarket(marketItem);
+      fetchSupplementalData(marketItem);
     } catch (error) {
       console.error('Market detail fetch error:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [slug, selectedInterval]);
+  }, [slug, selectedInterval, fetchSupplementalData]);
 
   useEffect(() => {
     fetchData();
