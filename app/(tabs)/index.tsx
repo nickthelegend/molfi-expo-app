@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, SlideInRight, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
-import { useBalance } from 'wagmi';
+import { useBalance, useEnsName } from 'wagmi';
 import { API_URL } from '@/constants/Config';
 import { AreaChart } from '@/components/charts/area-chart';
 
@@ -69,6 +69,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { address } = useAppKitAccount();
   const { data: balance, isLoading: isBalanceLoading, refetch: refetchBalance } = useBalance({ address: address as `0x${string}` });
+  const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   
   const [agents, setAgents] = useState([]);
   const [notifications, setNotifications] = useState([
@@ -122,14 +123,14 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.gmText}>GM,</Text>
               <Text style={styles.usernameText}>
-                {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer'}
+                {ensName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer')}
               </Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => router.push('/profile')}>
              <View style={[styles.avatarCircle, { borderColor: 'rgba(255,255,255,0.1)' }]}>
                <Image 
-                 source={{ uri: `https://api.dicebear.com/7.x/pixel-art/svg?seed=0xcCED528A5b70e16c8131Cb2de424564dD938fD3B` }} 
+                 source={{ uri: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${address || '0x0'}` }} 
                  style={styles.avatar}
                />
              </View>

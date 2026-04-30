@@ -16,6 +16,7 @@ import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
+import { useBalance, useEnsName } from 'wagmi';
 import { API_URL } from '@/constants/Config';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ interface Agent {
   tradesCount: number;
   aum: number;
   avatarColor?: string;
+  ensSubdomain?: string;
 }
 
 const formatCurrency = (val: number) => {
@@ -48,6 +50,7 @@ export default function AgentsScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const { address } = useAppKitAccount();
+  const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -129,6 +132,14 @@ export default function AgentsScreen() {
         </View>
         <View style={styles.headerInfo}>
           <Text style={styles.agentName}>{item.name}</Text>
+          {item.ensSubdomain ? (
+            <View style={styles.ensTag}>
+              <Ionicons name="at-circle-outline" size={12} color="#00FF94" />
+              <Text style={styles.ensText}>{item.ensSubdomain}</Text>
+            </View>
+          ) : (
+            <Text style={styles.noEnsText}>No ENS domain</Text>
+          )}
           <Text style={styles.strategyText}>Strategy: {item.strategy}</Text>
         </View>
         <View style={[styles.statusPill, { backgroundColor: item.status === 'active' ? 'rgba(0,200,150,0.1)' : 'rgba(255,185,0,0.1)' }]}>
@@ -198,7 +209,7 @@ export default function AgentsScreen() {
           <View>
             <Text style={styles.gmText}>GM,</Text>
             <Text style={styles.usernameText}>
-              {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer'}
+              {ensName || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Explorer')}
             </Text>
           </View>
         </View>
@@ -292,7 +303,32 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontFamily: 'Syne-Bold', fontSize: 20 },
   headerInfo: { flex: 1, marginLeft: 12 },
   agentName: { fontFamily: 'Syne-Bold', fontSize: 17, color: '#fff' },
-  strategyText: { fontFamily: 'Syne-Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  ensTag: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,255,148,0.05)', 
+    borderWidth: 1, 
+    borderColor: '#00FF94', 
+    paddingHorizontal: 8, 
+    paddingVertical: 2, 
+    borderRadius: 6, 
+    gap: 4,
+    marginTop: 4
+  },
+  ensText: { 
+    fontFamily: 'Syne-Bold', 
+    fontSize: 11, 
+    color: '#00FF94' 
+  },
+  noEnsText: { 
+    fontFamily: 'Syne-Regular', 
+    fontSize: 10, 
+    color: 'rgba(255,255,255,0.2)', 
+    fontStyle: 'italic',
+    marginTop: 4
+  },
+  strategyText: { fontFamily: 'Syne-Regular', fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
   statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, gap: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontFamily: 'Syne-Medium', fontSize: 11 },

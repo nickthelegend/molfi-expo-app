@@ -45,6 +45,7 @@ export default function NewAgentScreen() {
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingText, setLoadingText] = useState('Provisioning Agent...');
 
   // Form State
   const [name, setName] = useState('');
@@ -60,10 +61,33 @@ export default function NewAgentScreen() {
 
   // Animation
   const slideOffset = useSharedValue(0);
+  const cursorOpacity = useSharedValue(0);
 
   const animatedSlideStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: withSpring(-slideOffset.value * width) }],
   }));
+
+  const animatedCursorStyle = useAnimatedStyle(() => ({
+    opacity: cursorOpacity.value,
+  }));
+
+  React.useEffect(() => {
+    if (isSubmitting) {
+      cursorOpacity.value = withTiming(1, { duration: 500 }, (finished) => {
+        if (finished) {
+          cursorOpacity.value = withTiming(0, { duration: 500 });
+        }
+      });
+      const interval = setInterval(() => {
+        cursorOpacity.value = withTiming(1, { duration: 500 }, (finished) => {
+          if (finished) {
+            cursorOpacity.value = withTiming(0, { duration: 500 });
+          }
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isSubmitting]);
 
   const nextStep = () => {
     if (step < 3) {
@@ -85,7 +109,13 @@ export default function NewAgentScreen() {
     if (!address || !name || !strategy || !funding) return;
     
     setIsSubmitting(true);
+    setLoadingText('Initializing OWS Wallet...');
+    
     try {
+      // Simulate steps for better UX
+      setTimeout(() => setLoadingText('Generating ENS Subdomain...'), 2000);
+      setTimeout(() => setLoadingText('Securing Keys in Vault...'), 4000);
+
       const res = await fetch(`${API_URL}/agents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,7 +123,9 @@ export default function NewAgentScreen() {
           walletAddress: address,
           name,
           strategy,
+          market: marketType,
           avatarColor,
+          createEns: true,
           config: {
             initialFunding: parseFloat(funding),
             riskLevel,
@@ -103,13 +135,20 @@ export default function NewAgentScreen() {
           }
         })
       });
+      
       const json = await res.json();
       if (json.success) {
-        router.replace('/(tabs)/agents');
+        setLoadingText('Agent Live!');
+        setTimeout(() => {
+          router.replace('/(tabs)/agents');
+        }, 1000);
+      } else {
+        alert('Creation failed: ' + json.error);
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Create agent error:', error);
-    } finally {
+      alert('A network error occurred.');
       setIsSubmitting(false);
     }
   };
@@ -356,6 +395,20 @@ export default function NewAgentScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <Animated.View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <Text style={styles.loadingTitle}>SYSTEM PROVISIONING</Text>
+            <View style={styles.terminalLine}>
+              <Text style={styles.terminalText}>$ {loadingText}</Text>
+              <Animated.View style={[styles.cursor, animatedCursorStyle]} />
+            </View>
+            <ActivityIndicator color={theme.primary} style={{ marginTop: 40 }} />
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -408,5 +461,41 @@ const styles = StyleSheet.create({
   footer: { padding: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   primaryBtn: { height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
   primaryBtnText: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff' },
-  disabledBtn: { opacity: 0.5 }
+  disabledBtn: { opacity: 0.5 },
+  loadingOverlay: { 
+    ...StyleSheet.absoluteFillObject, 
+    backgroundColor: 'rgba(10,10,10,0.95)', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  loadingContent: { width: '80%', alignItems: 'center' },
+  loadingTitle: { 
+    fontFamily: 'Syne-Bold', 
+    fontSize: 12, 
+    color: 'rgba(255,255,255,0.4)', 
+    letterSpacing: 2, 
+    marginBottom: 20 
+  },
+  terminalLine: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,255,148,0.05)', 
+    paddingHorizontal: 20, 
+    paddingVertical: 12, 
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,148,0.2)'
+  },
+  terminalText: { 
+    fontFamily: 'DM-Mono-Regular', 
+    fontSize: 16, 
+    color: '#00FF94' 
+  },
+  cursor: { 
+    width: 10, 
+    height: 20, 
+    backgroundColor: '#00FF94', 
+    marginLeft: 8 
+  }
 });

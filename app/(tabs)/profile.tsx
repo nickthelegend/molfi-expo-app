@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAccount as useAppKitAccount, useAppKit } from '@reown/appkit-react-native';
-import { useDisconnect } from 'wagmi';
+import { useDisconnect, useEnsName } from 'wagmi';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const { address, isConnected } = useAppKitAccount();
+  const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const router = useRouter();
@@ -110,8 +111,8 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
 
-          <Text style={[styles.displayName, isConnected && { fontFamily: 'DMMono_400Regular', fontSize: 20 }]}>
-            {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Not Connected'}
+          <Text style={[styles.displayName, isConnected && !ensName && { fontFamily: 'DMMono_400Regular', fontSize: 20 }]}>
+            {isConnected ? (ensName || `${address?.slice(0, 6)}...${address?.slice(-4)}`) : 'Not Connected'}
           </Text>
           <TouchableOpacity onPress={handleOpenWallet} style={styles.walletPill}>
             <Text style={styles.walletPillText}>Manage Wallet</Text>

@@ -21,7 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
-import { useBalance, useReadContracts } from 'wagmi';
+import { useBalance, useReadContracts, useEnsName } from 'wagmi';
 import { erc20Abi, formatUnits } from 'viem';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -107,6 +107,7 @@ export default function PortfolioScreen() {
   
   const { address, isConnected } = useAppKitAccount();
   const { data: nativeBalance, isLoading: isNativeLoading, refetch: refetchBalance } = useBalance({ address: address as `0x${string}` });
+  const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
 
   const [activeTab, setActiveTab] = useState('Assets');
   const [portfolioData, setPortfolioData] = useState<any>(null);
@@ -199,7 +200,7 @@ export default function PortfolioScreen() {
             <Text style={styles.headerTitle}>Molfi AI</Text>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.username}>{address ? `${address.slice(0,6)}...${address.slice(-4)}` : 'Disconnected'}</Text>
+            <Text style={styles.username}>{ensName || (address ? `${address.slice(0,6)}...${address.slice(-4)}` : 'Disconnected')}</Text>
           </View>
         </View>
 
