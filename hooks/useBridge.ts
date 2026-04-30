@@ -244,13 +244,13 @@ export function useBridge(): UseBridgeReturn {
     }
   }, [address, walletProvider, quote]);
 
-  function reset() {
+  const reset = useCallback(() => {
     console.log('[Bridge] Resetting state...');
     setStep('idle');
     setQuote(null);
     setSourceTxHash(null);
     setError(null);
-  }
+  }, []);
 
   return { step, quote, sourceTxHash, error, getRoute, executeBridge, reset };
 }

@@ -47,17 +47,11 @@ const FALLBACK_ADDRESSES: Record<string, Record<string, string>> = {
     'USDC': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     'WETH': '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
   },
-  '16601': {
-    'WETH': '0x1Cd0690fF9a693f5EF2dD976660a8dAFc81A109c',
-    'USDC': '0x627d32C41D35284050b168925501867160965383',
-    'USDT': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', // Mock or real if exists
-  }
 };
 
 const CHAIN_NAMES: Record<number, string> = {
   1: 'Ethereum',
   137: 'Polygon',
-  16601: '0G Mainnet',
   8453: 'Base',
   42161: 'Arbitrum',
 };
@@ -66,8 +60,8 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
 
-  const [fromChain, setFromChain] = useState<number>(16601);
-  const [toChain, setToChain] = useState<number>(16601);
+  const [fromChain, setFromChain] = useState<number>(1);
+  const [toChain, setToChain] = useState<number>(1);
 
   const {
     getQuote, executeSwap, step: swapStep, quote: swapQuote,
@@ -84,8 +78,8 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
 
   useEffect(() => {
     if (swapParams) {
-      setFromChain(swapParams.fromChain || swapParams.chainId || 16601);
-      setToChain(swapParams.toChain || swapParams.fromChain || swapParams.chainId || 16601);
+      setFromChain(swapParams.fromChain || swapParams.chainId || 1);
+      setToChain(swapParams.toChain || swapParams.fromChain || swapParams.chainId || 1);
     }
   }, [swapParams]);
 
@@ -103,20 +97,20 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
     if (!fromTokenAddr || !toTokenAddr) return;
 
     if (isCrossChain) {
+      console.log('[SwapCard] Fetching bridge route...');
       resetBridge();
       getRoute({
         fromChainId: fromChain,
         toChainId: toChain,
-        tokenAddress: fromTokenAddr as `0x${string}`,
+        fromTokenAddress: fromTokenAddr as `0x${string}`,
         toTokenAddress: toTokenAddr as `0x${string}`,
-        tokenSymbol: swapParams.symbolIn,
-        tokenDecimals: swapParams.tokenInDecimals ?? 6,
         amount: swapParams.amount,
       });
     } else {
+      console.log('[SwapCard] Fetching swap quote...');
       resetSwap();
       getQuote({
-        chainId: fromChain as 16601 | 137,
+        chainId: fromChain,
         tokenIn: fromTokenAddr as `0x${string}`,
         tokenOut: toTokenAddr as `0x${string}`,
         tokenInDecimals: swapParams.tokenInDecimals ?? 6,
@@ -157,7 +151,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
       const toTokenAddr = tokenOut || FALLBACK_ADDRESSES[String(fromChain)]?.[swapParams.symbolOut?.toUpperCase()];
       
       await executeSwap({
-        chainId: fromChain as 16601 | 137,
+        chainId: fromChain,
         tokenIn: fromTokenAddr as `0x${string}`,
         tokenOut: toTokenAddr as `0x${string}`,
         tokenInDecimals: swapParams.tokenInDecimals ?? 6,
@@ -203,7 +197,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>SOURCE</Text>
           <TouchableOpacity 
             onPress={() => {
-              const ids = [16601, 137, 8453, 42161, 1];
+              const ids = [1, 137, 8453, 42161];
               const currentIndex = ids.indexOf(fromChain);
               const nextIndex = (currentIndex + 1) % ids.length;
               setFromChain(ids[nextIndex]);
@@ -219,7 +213,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>DESTINATION</Text>
           <TouchableOpacity 
             onPress={() => {
-              const ids = [16601, 137, 8453, 42161, 1];
+              const ids = [1, 137, 8453, 42161];
               const currentIndex = ids.indexOf(toChain);
               const nextIndex = (currentIndex + 1) % ids.length;
               setToChain(ids[nextIndex]);

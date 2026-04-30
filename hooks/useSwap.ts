@@ -13,9 +13,8 @@ import { polygon } from 'viem/chains';
 import { useAccount, useProvider } from '@reown/appkit-react-native';
 import { base, arbitrum, mainnet } from 'viem/chains';
 import {
-  ogChain,
-  OG_CONTRACTS,
   POLYGON_CONTRACTS,
+  UNISWAP_V3_CONTRACTS,
   FEE_TIERS,
   ERC20_ABI,
   QUOTER_V2_ABI,
@@ -45,14 +44,14 @@ export type SwapQuote = {
 };
 
 export type SwapParams = {
-  chainId: 16661 | 137;             // 0G or Polygon
+  chainId: number;                   // Supported: 1, 137, 8453, 42161
   tokenIn: `0x${string}`;
   tokenOut: `0x${string}`;
   tokenInDecimals: number;
   tokenOutDecimals: number;
-  amountIn: string;                 // human-readable, e.g. "100"
-  slippageBps?: number;             // basis points, default 50 (0.5%)
-  recipientAddress?: `0x${string}`; // defaults to connected wallet
+  amountIn: string;                 
+  slippageBps?: number;             
+  recipientAddress?: `0x${string}`; 
 };
 
 export type UseSwapReturn = {
@@ -66,11 +65,6 @@ export type UseSwapReturn = {
 };
 
 // ─── Public clients (reads — no wallet needed) ────────────────────────────
-const ogPublicClient = createPublicClient({
-  chain: ogChain,
-  transport: http('https://evmrpc.0g.ai'),
-});
-
 const polygonPublicClient = createPublicClient({
   chain: polygon,
   transport: http('https://polygon-rpc.com'),
@@ -88,31 +82,42 @@ const arbitrumPublicClient = createPublicClient({
 
 const ethPublicClient = createPublicClient({
   chain: mainnet,
-  transport: http('https://cloudflare-eth.com'),
+  transport: http('https://ethereum.publicnode.com'),
 });
 
 // ─── Helper: pick the right public client and contract addresses ──────────
 function getChainConfig(chainId: number) {
   switch (chainId) {
-    case 16661:
-      return { publicClient: ogPublicClient, chain: ogChain, contracts: OG_CONTRACTS };
     case 137:
-      return { publicClient: polygonPublicClient, chain: polygon, contracts: POLYGON_CONTRACTS };
     case 8453:
-      return { publicClient: basePublicClient, chain: base, contracts: POLYGON_CONTRACTS }; // Uniswap V3 addresses are the same
     case 42161:
-      return { publicClient: arbitrumPublicClient, chain: arbitrum, contracts: POLYGON_CONTRACTS };
     case 1:
-      return { publicClient: ethPublicClient, chain: mainnet, contracts: POLYGON_CONTRACTS };
+      const clients: Record<number, any> = {
+        137: polygonPublicClient,
+        8453: basePublicClient,
+        42161: arbitrumPublicClient,
+        1: ethPublicClient
+      };
+      const chains: Record<number, any> = {
+        137: polygon,
+        8453: base,
+        42161: arbitrum,
+        1: mainnet
+      };
+      return { 
+        publicClient: clients[chainId], 
+        chain: chains[chainId], 
+        contracts: UNISWAP_V3_CONTRACTS 
+      };
     default:
-      throw new Error(`Chain ID ${chainId} is not supported for local swaps.`);
+      throw new Error(`Chain ID ${chainId} is not supported for swaps.`);
   }
 }
 
 // ─── Helper: try multiple fee tiers, return best quote ────────────────────
 async function getBestQuote(
   publicClient: any,
-  quoterAddress: `0x${string}`,
+  contracts: any,
   tokenIn: `0x${string}`,
   tokenOut: `0x${string}`,
   amountIn: bigint,
@@ -122,8 +127,10 @@ async function getBestQuote(
 
   for (const fee of feeTiersToTry) {
     try {
+      console.log(`[getBestQuote] Trying fee tier: ${fee}`);
+      
       const result = await publicClient.simulateContract({
-        address: quoterAddress,
+        address: contracts.QUOTER_V2,
         abi: QUOTER_V2_ABI,
         functionName: 'quoteExactInputSingle',
         args: [{
@@ -135,11 +142,13 @@ async function getBestQuote(
         }],
       });
       const [amountOut, , , gasEstimate] = result.result as [bigint, bigint, number, bigint];
+      console.log(`[getBestQuote] Success for ${fee}: ${amountOut.toString()}`);
+      
       if (!best || amountOut > best.amountOut) {
         best = { amountOut, fee, gasEstimate };
       }
-    } catch {
-      // This fee tier has no pool — try next
+    } catch (e: any) {
+      console.warn(`[getBestQuote] Failed for ${fee}:`, e?.shortMessage || e?.message || e);
     }
   }
   return best;
@@ -157,28 +166,58 @@ export function useSwap(): UseSwapReturn {
 
   // ── 1. Get Quote ────────────────────────────────────────────────────────
   const getQuote = useCallback(async (params: SwapParams): Promise<SwapQuote | null> => {
+    console.log('[useSwap] getQuote started', params);
     setStep('quoting');
     setError(null);
     setQuote(null);
 
     try {
       const { publicClient, contracts } = getChainConfig(params.chainId);
-      const amountIn = parseUnits(params.amountIn, params.tokenInDecimals);
+      
+      // Fetch decimals dynamically if not provided or suspect
+      let decimalsIn = params.tokenInDecimals;
+      let decimalsOut = params.tokenOutDecimals;
 
+      if (!decimalsIn || !decimalsOut || decimalsOut === 18) {
+        try {
+          const dIn = await publicClient.readContract({
+            address: params.tokenIn,
+            abi: ERC20_ABI,
+            functionName: 'decimals',
+          }) as number;
+          const dOut = await publicClient.readContract({
+            address: params.tokenOut,
+            abi: ERC20_ABI,
+            functionName: 'decimals',
+          }) as number;
+          decimalsIn = dIn;
+          decimalsOut = dOut;
+          console.log(`[useSwap] Fetched decimals: IN=${decimalsIn}, OUT=${decimalsOut}`);
+        } catch (e) {
+          console.warn('[useSwap] Failed to fetch decimals, falling back to params', e);
+        }
+      }
+
+      const amountIn = parseUnits(params.amountIn, decimalsIn);
+
+      console.log(`[useSwap] Fetching quote for ${params.amountIn} ${params.tokenIn} on chain ${params.chainId}...`);
       const best = await getBestQuote(
         publicClient,
-        contracts.QUOTER_V2,
+        contracts,
         params.tokenIn,
         params.tokenOut,
         amountIn,
       );
 
-      if (!best) throw new Error('No liquidity pool found for this pair on this chain.');
+      if (!best) {
+        console.warn('[useSwap] No liquidity pool found');
+        throw new Error('No liquidity pool found for this pair on this chain.');
+      }
 
-      const amountOutFormatted = formatUnits(best.amountOut, params.tokenOutDecimals);
-      const priceImpact = '<0.5%'; // conservative — replace with pool slot0 read if needed
+      console.log('[useSwap] Best quote found:', best);
+      const amountOutFormatted = formatUnits(best.amountOut, decimalsOut);
+      const priceImpact = '<0.5%'; 
 
-      // Gas cost in USD: estimate gas * 1 gwei * ETH price ~$3000 (rough)
       const gasCostUSD = `~$${(Number(best.gasEstimate) * 1e-9 * 3000).toFixed(4)}`;
 
       const result: SwapQuote = {
@@ -194,6 +233,7 @@ export function useSwap(): UseSwapReturn {
       setStep('idle');
       return result;
     } catch (e: any) {
+      console.error('[useSwap] getQuote error:', e);
       const msg = e?.shortMessage ?? e?.message ?? 'Quote failed';
       setError(msg);
       setStep('error');
@@ -203,6 +243,7 @@ export function useSwap(): UseSwapReturn {
 
   // ── 2. Execute Swap ─────────────────────────────────────────────────────
   const executeSwap = useCallback(async (params: SwapParams): Promise<string | null> => {
+    console.log('[useSwap] executeSwap started', params);
     if (!address || !walletProvider) {
       setError('Wallet not connected');
       setStep('error');
@@ -226,7 +267,7 @@ export function useSwap(): UseSwapReturn {
       setStep('quoting');
       const best = await getBestQuote(
         publicClient,
-        contracts.QUOTER_V2,
+        contracts,
         params.tokenIn,
         params.tokenOut,
         amountIn,
@@ -234,6 +275,7 @@ export function useSwap(): UseSwapReturn {
       if (!best) throw new Error('No route found. The pool may have insufficient liquidity.');
 
       const amountOutMinimum = best.amountOut * BigInt(10000 - slippageBps) / 10000n;
+      console.log(`[useSwap] Quote ready. Min output: ${amountOutMinimum.toString()}`);
 
       // ── B. Check and handle ERC20 allowance ───────────────────────────
       const isNativeIn = params.tokenIn.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
@@ -294,6 +336,7 @@ export function useSwap(): UseSwapReturn {
       return swapHash;
 
     } catch (e: any) {
+      console.error('[useSwap] executeSwap error:', e);
       const msg = e?.shortMessage ?? e?.message ?? 'Swap failed';
       setError(msg);
       setStep('error');
@@ -301,12 +344,12 @@ export function useSwap(): UseSwapReturn {
     }
   }, [address, walletProvider]);
 
-  function reset() {
+  const reset = useCallback(() => {
     setStep('idle');
     setQuote(null);
     setTxHash(null);
     setError(null);
-  }
+  }, []);
 
   return { step, quote, txHash, error, getQuote, executeSwap, reset };
 }

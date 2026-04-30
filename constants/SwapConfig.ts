@@ -14,18 +14,15 @@ export const ogChain = defineChain({
   },
 });
 
-// ─── 0G Contract Addresses ────────────────────────────────────────────────
-export const OG_CONTRACTS = {
-  SWAP_ROUTER:  '0x18cCa38E51c4C339A6BD6e174025f08360FEEf30' as `0x${string}`,
-  FACTORY:      '0x6F3945Ab27296D1D66D8EEb042ff1B4fb2E0CE70' as `0x${string}`,
-  QUOTER_V2:    '0x23b55293b7F06F6c332a0dDA3D88d8921218425B' as `0x${string}`,
-  WETH:         '0x1Cd0690fF9a693f5EF2dD976660a8dAFc81A109c' as `0x${string}`,
+// Official Uniswap V3 Contracts (Ethereum, Polygon, Arbitrum, Base, Optimism)
+export const UNISWAP_V3_CONTRACTS = {
+  SWAP_ROUTER: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as `0x${string}`,
+  QUOTER_V2:   '0x61fFE014bA17989E743c5F6cB21bF9697530B21e' as `0x${string}`,
+  FACTORY:     '0x1F98431c8aD98523631AE4a59f267346ea31F984' as `0x${string}`,
 } as const;
 
-// ─── Polygon Contract Addresses ───────────────────────────────────────────
 export const POLYGON_CONTRACTS = {
-  SWAP_ROUTER:  '0xE592427A0AEce92De3Edee1F18E0157C05861564' as `0x${string}`,
-  QUOTER_V2:    '0x61fFE014bA17989E743c5F6cB21bF9697530B21e' as `0x${string}`,
+  ...UNISWAP_V3_CONTRACTS,
   WETH:         '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270' as `0x${string}`, // WMATIC
   USDC:         '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as `0x${string}`,
 } as const;
