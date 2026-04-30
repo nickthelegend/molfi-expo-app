@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -14,20 +14,31 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useAccount, useBalance } from 'wagmi';
-import { Address, formatUnits, parseUnits } from 'viem';
+import { Address } from 'viem';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useUniswapSwap } from '@/hooks/useUniswapSwap';
+import { useSwap } from '@/hooks/useSwap';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
-// Common tokens
-const ETH = { symbol: 'ETH', name: 'Ethereum', address: 'ETH', decimals: 18 };
-const USDC = { symbol: 'USDC', name: 'USD Coin', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 };
+// Common tokens mapped for 0G Mainnet
+const A0GI = { symbol: 'A0GI', name: '0G Native', address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', decimals: 18 };
+const USDC = { symbol: 'USDC', name: 'USD Coin', address: '0x627d32C41D35284050b168925501867160965383', decimals: 6 }; // Placeholder 0G USDC
+
+const STEP_LABELS: Record<string, string> = {
+  idle: 'Swap',
+  quoting: 'Fetching route...',
+  checking_allowance: 'Checking allowance...',
+  approving: 'Approve in wallet',
+  waiting_approval: 'Confirming approval...',
+  signing_swap: 'Sign swap in wallet',
+  waiting_confirmation: 'Broadcasting...',
+  done: 'Swap Complete ✓',
+  error: 'Swap Failed',
+};
 
 export default function SwapScreen() {
   const { tokenId } = useLocalSearchParams();
@@ -37,57 +48,56 @@ export default function SwapScreen() {
   const router = useRouter();
   
   const { address } = useAccount();
-  const { getQuote, executeSwap, isLoading: isSwapping, error: swapError } = useUniswapSwap();
+  const { getQuote, executeSwap, step, quote, error: swapError, reset } = useSwap();
 
   const [inputAmount, setInputAmount] = useState('');
-  const [outputAmount, setOutputAmount] = useState('');
-  const [tokenIn, setTokenIn] = useState(ETH);
+  const [tokenIn, setTokenIn] = useState(A0GI);
   const [tokenOut, setTokenOut] = useState(USDC);
-  const [quote, setQuote] = useState<any>(null);
-  const [isQuoting, setIsQuoting] = useState(false);
+  const [isQuotingLocal, setIsQuotingLocal] = useState(false);
 
   const { data: balanceIn } = useBalance({ 
     address, 
-    token: tokenIn.address === 'ETH' ? undefined : tokenIn.address as Address 
+    token: tokenIn.address === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? undefined : tokenIn.address as Address,
+    chainId: 16661 // 0G Mainnet
   });
 
   // Debounced quote fetch
   useEffect(() => {
     if (!inputAmount || parseFloat(inputAmount) <= 0) {
-      setQuote(null);
-      setOutputAmount('');
+      reset();
+      setIsQuotingLocal(false);
       return;
     }
 
     const timer = setTimeout(async () => {
-      setIsQuoting(true);
-      const amountRaw = parseUnits(inputAmount, tokenIn.decimals).toString();
-      const res = await getQuote({
-        tokenIn: tokenIn.address === 'ETH' ? '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' : tokenIn.address,
-        tokenOut: tokenOut.address === 'ETH' ? '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' : tokenOut.address,
-        amount: amountRaw,
-        chainId: 1, // Mainnet for now
+      setIsQuotingLocal(true);
+      await getQuote({
+        chainId: 16661, // Defaulting to 0G Mainnet for this generic screen
+        tokenIn: tokenIn.address as `0x${string}`,
+        tokenOut: tokenOut.address as `0x${string}`,
+        tokenInDecimals: tokenIn.decimals,
+        tokenOutDecimals: tokenOut.decimals,
+        amountIn: inputAmount,
       });
-      
-      if (res) {
-        setQuote(res);
-        const outAmt = res.routing === 'CLASSIC' 
-          ? formatUnits(BigInt(res.quote.output.amount), tokenOut.decimals)
-          : formatUnits(BigInt(res.quote.orderInfo.outputs[0].startAmount), tokenOut.decimals);
-        setOutputAmount(parseFloat(outAmt).toFixed(6));
-      }
-      setIsQuoting(false);
-    }, 500);
+      setIsQuotingLocal(false);
+    }, 600);
 
     return () => clearTimeout(timer);
-  }, [inputAmount, tokenIn, tokenOut]);
+  }, [inputAmount, tokenIn, tokenOut, getQuote]);
 
   const handleSwap = async () => {
-    if (!quote) return;
-    const hash = await executeSwap(quote);
+    if (!quote || step === 'done') return;
+    const hash = await executeSwap({
+      chainId: 16661,
+      tokenIn: tokenIn.address as `0x${string}`,
+      tokenOut: tokenOut.address as `0x${string}`,
+      tokenInDecimals: tokenIn.decimals,
+      tokenOutDecimals: tokenOut.decimals,
+      amountIn: inputAmount,
+    });
+    
     if (hash) {
-      // Success logic
-      router.back();
+      setTimeout(() => router.back(), 2000);
     }
   };
 
@@ -95,8 +105,13 @@ export default function SwapScreen() {
     const temp = tokenIn;
     setTokenIn(tokenOut);
     setTokenOut(temp);
-    setInputAmount(outputAmount);
+    if (quote?.amountOutFormatted) {
+      setInputAmount(parseFloat(quote.amountOutFormatted).toFixed(4));
+    }
   };
+
+  const isProcessing = step !== 'idle' && step !== 'error' && step !== 'done';
+  const outputAmount = quote?.amountOutFormatted ? parseFloat(quote.amountOutFormatted).toFixed(6) : '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -106,7 +121,7 @@ export default function SwapScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Swap</Text>
+          <Text style={styles.headerTitle}>Swap (0G Mainnet)</Text>
           <TouchableOpacity style={styles.settingsBtn}>
             <Ionicons name="settings-outline" size={20} color="#A0A0A0" />
           </TouchableOpacity>
@@ -117,7 +132,7 @@ export default function SwapScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardLabel}>Sell</Text>
-              <Text style={styles.balanceText}>Balance: {balanceIn?.formatted.slice(0, 8)}</Text>
+              <Text style={styles.balanceText}>Balance: {balanceIn?.formatted.slice(0, 8) || '0.00'}</Text>
             </View>
             <View style={styles.inputRow}>
               <TextInput
@@ -152,7 +167,7 @@ export default function SwapScreen() {
             </View>
             <View style={styles.inputRow}>
               <View style={styles.outputValueContainer}>
-                {isQuoting ? (
+                {isQuotingLocal || step === 'quoting' ? (
                   <ActivityIndicator size="small" color={theme.primary} />
                 ) : (
                   <Text style={[styles.mainInput, !outputAmount && { color: 'rgba(255,255,255,0.1)' }]}>
@@ -171,19 +186,19 @@ export default function SwapScreen() {
           </View>
 
           {/* Quote Details */}
-          {quote && (
+          {quote && !isQuotingLocal && (
             <Animated.View entering={FadeIn} style={styles.detailsCard}>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Exchange Rate</Text>
+                <Text style={styles.detailLabel}>Rate</Text>
                 <Text style={styles.detailValue}>1 {tokenIn.symbol} = {(parseFloat(outputAmount)/parseFloat(inputAmount)).toFixed(4)} {tokenOut.symbol}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Slippage Tolerance</Text>
-                <Text style={styles.detailValue}>0.5%</Text>
+                <Text style={styles.detailLabel}>Network Fee</Text>
+                <Text style={styles.detailValue}>{quote.gasCostUSD}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Network Fee</Text>
-                <Text style={styles.detailValue}>~${quote.quote?.gasFeeUSD || '0.00'}</Text>
+                <Text style={styles.detailLabel}>Pool Fee Tier</Text>
+                <Text style={styles.detailValue}>{(quote.fee / 10000).toFixed(2)}%</Text>
               </View>
             </Animated.View>
           )}
@@ -196,14 +211,14 @@ export default function SwapScreen() {
           )}
 
           <TouchableOpacity 
-            style={[styles.swapBtn, { backgroundColor: theme.primary }, (!quote || isSwapping) && { opacity: 0.5 }]}
+            style={[styles.swapBtn, { backgroundColor: theme.primary }, (!quote || isProcessing) && { opacity: 0.5 }]}
             onPress={handleSwap}
-            disabled={!quote || isSwapping}
+            disabled={!quote || isProcessing}
           >
-            {isSwapping ? (
+            {isProcessing ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.swapBtnText}>Swap</Text>
+              <Text style={styles.swapBtnText}>{STEP_LABELS[step] || 'Swap'}</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -216,13 +231,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontFamily: 'Syne_700Bold', fontSize: 18, color: '#fff' },
+  headerTitle: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff', opacity: 0.8 },
   settingsBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-end' },
   content: { padding: 20 },
   card: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   cardLabel: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.4)' },
-  balanceText: { fontFamily: 'DM Mono', fontSize: 12, color: 'rgba(255,255,255,0.3)' },
+  balanceText: { fontFamily: 'DMMono_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)' },
   inputRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mainInput: { fontFamily: 'Syne_700Bold', fontSize: 32, color: '#fff', flex: 1 },
   outputValueContainer: { flex: 1, height: 40, justifyContent: 'center' },
@@ -235,9 +250,9 @@ const styles = StyleSheet.create({
   detailsCard: { marginTop: 24, paddingHorizontal: 4, gap: 12 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   detailLabel: { fontFamily: 'KHTeka', fontSize: 13, color: 'rgba(255,255,255,0.35)' },
-  detailValue: { fontFamily: 'DM Mono', fontSize: 13, color: '#fff' },
+  detailValue: { fontFamily: 'DMMono_400Regular', fontSize: 13, color: '#fff' },
   errorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,59,48,0.1)', padding: 12, borderRadius: 12, marginTop: 24, gap: 8 },
   errorText: { fontFamily: 'KHTeka', fontSize: 12, color: '#FF3B30', flex: 1 },
   swapBtn: { height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginTop: 32 },
-  swapBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff' },
+  swapBtnText: { fontFamily: 'Syne_700Bold', fontSize: 16, color: '#fff', letterSpacing: 1 },
 });

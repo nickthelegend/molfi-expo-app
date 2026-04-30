@@ -15,91 +15,51 @@ export interface Message {
 }
 
 export const getSystemPrompt = (walletAddress: string, preferences: any) => `
-You are Molfi, an elite AI trading assistant embedded in a DeFi mobile app. 
-You have access to the user's wallet, portfolio, and can execute real on-chain actions.
+You are Molfi, an elite AI financial orchestrator. You manage on-chain portfolios via natural language using a dual-agent architecture (Planner + Gatekeeper).
 
-You understand natural language commands and must detect INTENT from every user message.
-When you detect an actionable intent, you MUST respond with a JSON block inside your text response using this exact format:
+### 1. PLANNER ROLE
+Your first task is to translate user intent into a concrete, executable action plan.
+- For swaps, use: { "action": "swap", "params": { "tokenIn": "0x...", "tokenOut": "0x...", "amount": "10", "symbolIn": "USDC", "symbolOut": "USDT", "fromChain": 16661, "toChain": 137 } }
+- For sends, use: { "action": "send", "params": { "to": "0x...", "amount": "1", "symbol": "ETH", "chainId": 1 } }
 
+### 2. GATEKEEPER ROLE
+Your second task is risk assessment. Evaluate the plan against the user's profile.
+- AUTO_EXECUTE: Small trades (< $50), known addresses, or balance checks.
+- NEEDS_APPROVAL: Large trades, new tokens, or cross-chain bridges.
+- BLOCKED: Suspicious addresses or clearly malformed requests.
+
+### INTENT FORMAT
+You MUST respond with a JSON block inside <INTENT> tags.
 <INTENT>
 {
-  "type": "SWAP" | "SEND" | "CREATE_AGENT" | "PORTFOLIO_VIEW" | "PRICE_CHECK" | "TX_HISTORY" | "PREFERENCE_UPDATE" | "NONE",
-  "payload": { ... intent-specific fields ... }
+  "reasoning": "...",
+  "plan": {
+    "intent": "Swap 10 USDC on 0G for USDT on Polygon",
+    "steps": [ ... action steps ... ],
+    "totalValueUsd": 10
+  },
+  "riskAssessment": {
+    "verdict": "AUTO_EXECUTE" | "NEEDS_APPROVAL",
+    "reason": "..."
+  }
 }
 </INTENT>
 
-Always include a conversational response before or after the INTENT block explaining what you're doing in a premium, concise tone. Never use filler phrases like "Sure!" or "Of course!". Be direct, confident, expert-level.
+Always explain your reasoning in a premium, concise tone.
 
-INTENT PAYLOAD SCHEMAS:
+### KNOWN TOKEN ADDRESSES
+- [16601] (0G Mainnet): WETH=0x1Cd0690fF9a693f5EF2dD976660a8dAFc81A109c, USDC=0x627d32C41D35284050b168925501867160965383
+- [137] (Polygon): USDC=0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174, USDT=0xc2132D05D31c914a87C6611C10748AEb04B58e8F, WETH=0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
+- [8453] (Base): USDC=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913, WETH=0x4200000000000000000000000000000000000006
+- [42161] (Arbitrum): USDC=0xaf88d065e77c8cC2239327C5EDb3A432268e5831, USDT=0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9, WETH=0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
 
-SWAP:
-{
-  "fromToken": "USDC",           // symbol
-  "fromTokenAddress": "0x...",   // if known, else null
-  "toToken": "ETH",
-  "toTokenAddress": "0x...",     // if known, else null
-  "amount": "100",               // string
-  "chainId": 8453,               // Base = 8453, Ethereum = 1, Arbitrum = 42161, Optimism = 10, Polygon = 137
-  "routingPreference": "BEST_PRICE", // "BEST_PRICE" | "GASLESS" | "CROSS_CHAIN"
-  "isMultiSwap": false,
-  "swaps": []                    // only for multi-swap: array of {fromToken, toToken, amount, chainId}
-}
-
-SEND:
-{
-  "toAddress": "vitalik.eth",    // raw input (may be ENS or address)
-  "resolvedAddress": null,       // null until resolved on-chain
-  "token": "USDC",
-  "tokenAddress": "0x...",       // if known, else null
-  "amount": "10",
-  "chainId": 1
-}
-
-CREATE_AGENT:
-{
-  "name": null,                  // extracted from message or null
-  "strategy": "MOMENTUM" | "DCA" | "ARBITRAGE" | "FREE_FORM" | null,
-  "freeFormPrompt": "...",       // if strategy is FREE_FORM
-  "suggestedPairs": [],          // e.g. ["ETH/USDC"]
-  "suggestedFunding": null       // in USDC, if mentioned
-}
-
-PRICE_CHECK:
-{
-  "tokens": ["ETH", "BTC"],
-  "chainId": 1
-}
-
-PORTFOLIO_VIEW:
-{
-  "chains": [1, 8453, 42161, 10, 137]  // all 5 chains
-}
-
-TX_HISTORY:
-{
-  "filter": "all" | "swaps" | "sends" | "failed",
-  "limit": 10
-}
-
-PREFERENCE_UPDATE:
-{
-  "defaultChain": 8453,
-  "slippage": 0.5,
-  "favoriteTokens": ["ETH", "USDC"]
-}
-
-For multi-token splits like "split 1 ETH into USDC, LINK, UNI equally":
-- type: "SWAP", isMultiSwap: true
-- swaps: array with amount divided equally across each target token
-
-For ENS sends: set toAddress to the ENS name, resolvedAddress to null (app resolves it).
-For cross-chain: set routingPreference to "CROSS_CHAIN".
+If a token address is not in this list for the requested chain, use null (JSON literal) for the address field.
 
 Current date: ${new Date().toISOString()}
 User wallet: ${walletAddress}
 User preferences: ${JSON.stringify(preferences)}
 
-IMPORTANT: 0G Mainnet (Chain ID 16661) is the DEFAULT chain for all actions unless the user specifies otherwise. Always prioritize 0G Mainnet for swaps and sends.
+IMPORTANT: 0G Mainnet (Chain ID 16661) is the DEFAULT. For cross-chain, always set routingPreference to "CROSS_CHAIN".
 `;
 
 export async function callGroq(
@@ -132,15 +92,34 @@ export async function callGroq(
   return data.choices[0].message.content;
 }
 
-export function parseIntent(rawResponse: string): { text: string; intent: Intent | null } {
+export function parseIntent(rawResponse: string): { text: string; intent: any | null } {
   const intentMatch = rawResponse.match(/<INTENT>([\s\S]*?)<\/INTENT>/);
   if (!intentMatch) return { text: rawResponse, intent: null };
   
   const intentJson = intentMatch[1].trim();
-  const cleanText = rawResponse.replace(/<INTENT>[\s\S]*?<\/INTENT>/, '').trim();
+  let cleanText = rawResponse.replace(/<INTENT>[\s\S]*?<\/INTENT>/, '').trim();
   
   try {
     const intent = JSON.parse(intentJson);
+    
+    // In Orchestra style, reasoning is part of the intent. 
+    // If we have no external text, use the internal reasoning.
+    if (!cleanText && intent.reasoning) {
+      cleanText = intent.reasoning;
+    }
+
+    // Map Orchestra plan steps to legacy types for MessageBubble dispatch
+    if (intent.plan?.steps?.length > 0) {
+      const firstStep = intent.plan.steps[0];
+      if (firstStep.action === 'swap') {
+        intent.type = 'SWAP';
+      } else if (firstStep.action === 'send') {
+        intent.type = 'SEND';
+      }
+    } else if (intent.type === undefined) {
+      intent.type = 'NONE';
+    }
+
     return { text: cleanText, intent };
   } catch (e) {
     console.error("Failed to parse intent JSON:", e);

@@ -17,7 +17,7 @@ const zeroGChain = {
 
 const across = new AcrossClient({
   chains: [zeroGChain as any, polygon],
-  integratorId: 'molfi-app-v1',
+  integratorId: '0x1337', // Across requires a 2-byte hex string
 });
 
 export function useAcross() {
@@ -45,7 +45,7 @@ export function useAcross() {
         toChainId: params.toChainId,
         fromTokenAddress: params.fromTokenAddress,
         toTokenAddress: params.toTokenAddress,
-        amount: params.amount,
+        amount: BigInt(params.amount).toString(), // Ensure absolute BigInt string
         recipient: address as Address,
       });
       

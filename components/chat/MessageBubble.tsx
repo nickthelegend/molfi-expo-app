@@ -21,22 +21,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ role, content, int
 
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
-      <View style={[
-        styles.bubble, 
-        isUser 
-          ? { backgroundColor: theme.primary, borderBottomRightRadius: 4 } 
-          : { backgroundColor: theme.card, borderBottomLeftRadius: 4 }
-      ]}>
-        <Text style={[styles.text, { color: isUser ? '#FFF' : theme.text }]}>
-          {content}
-        </Text>
-      </View>
+      {content ? (
+        <View style={[
+          styles.bubble, 
+          isUser 
+            ? { backgroundColor: theme.primary, borderBottomRightRadius: 4 } 
+            : { backgroundColor: theme.card, borderBottomLeftRadius: 4 }
+        ]}>
+          <Text style={[styles.text, { color: isUser ? '#FFF' : theme.text }]}>
+            {content}
+          </Text>
+        </View>
+      ) : null}
 
       {intent && intent.type !== 'NONE' && (
         <Animated.View entering={FadeInDown.duration(300)} style={styles.cardWrapper}>
-          {intent.type === 'SWAP' && <SwapCard payload={intent.payload} />}
-          {intent.type === 'SEND' && <SendCard payload={intent.payload} />}
-          {intent.type === 'CREATE_AGENT' && <CreateAgentCard payload={intent.payload} />}
+          {intent.type === 'SWAP' && <SwapCard payload={intent} />}
+          {intent.type === 'SEND' && <SendCard payload={intent} />}
+          {intent.type === 'CREATE_AGENT' && <CreateAgentCard payload={intent} />}
         </Animated.View>
       )}
     </View>
