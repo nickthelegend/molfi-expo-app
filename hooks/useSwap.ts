@@ -82,7 +82,7 @@ const arbitrumPublicClient = createPublicClient({
 
 const ethPublicClient = createPublicClient({
   chain: mainnet,
-  transport: http('https://ethereum.publicnode.com'),
+  transport: http('https://1rpc.io/eth'),
 });
 
 // ─── Helper: pick the right public client and contract addresses ──────────
@@ -253,6 +253,36 @@ export function useSwap(): UseSwapReturn {
     setError(null);
     const { publicClient, chain, contracts } = getChainConfig(params.chainId);
 
+    // ── Pre-check: Ensure wallet is on the correct chain ─────────────────
+    try {
+      console.log(`[useSwap] Requesting chain switch to ${chain.name} (${chain.id})...`);
+      await (walletProvider as any).request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${chain.id.toString(16)}` }],
+      });
+      console.log('[useSwap] Chain switch request sent/successful.');
+    } catch (e: any) {
+      console.warn('[useSwap] Chain switch warning:', e.message);
+    }
+
+    // Fetch decimals dynamically
+    let decimalsIn = params.tokenInDecimals;
+    let decimalsOut = params.tokenOutDecimals;
+
+    if (!decimalsIn || !decimalsOut || decimalsOut === 18) {
+      try {
+        const dIn = await publicClient.readContract({ address: params.tokenIn, abi: ERC20_ABI, functionName: 'decimals' }) as number;
+        const dOut = await publicClient.readContract({ address: params.tokenOut, abi: ERC20_ABI, functionName: 'decimals' }) as number;
+        decimalsIn = dIn;
+        decimalsOut = dOut;
+      } catch (e) {
+        console.warn('[useSwap] Failed to fetch decimals in executeSwap, falling back');
+      }
+    }
+
+    const amountIn = parseUnits(params.amountIn, decimalsIn);
+    const slippageBps = params.slippageBps ?? 50;
+
     const walletClient = createWalletClient({
       chain,
       transport: custom(walletProvider as any),
@@ -260,8 +290,23 @@ export function useSwap(): UseSwapReturn {
     });
 
     try {
-      const amountIn = parseUnits(params.amountIn, params.tokenInDecimals);
-      const slippageBps = params.slippageBps ?? 50;
+
+      // ── 0. Check Balance ───────────────────────────────────────────────
+      const isNativeIn = params.tokenIn.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+      const balance = isNativeIn 
+        ? await publicClient.getBalance({ address: address as `0x${string}` })
+        : await publicClient.readContract({
+            address: params.tokenIn,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [address as `0x${string}`],
+          }) as bigint;
+
+      console.log(`[useSwap] User balance: ${balance.toString()}, Required: ${amountIn.toString()}`);
+      
+      if (balance < amountIn) {
+        throw new Error(`Insufficient balance. You have ${formatUnits(balance, decimalsIn)} ${params.symbolIn || 'tokens'} but need ${params.amountIn}.`);
+      }
 
       // ── A. Get fresh quote ─────────────────────────────────────────────
       setStep('quoting');
@@ -278,7 +323,6 @@ export function useSwap(): UseSwapReturn {
       console.log(`[useSwap] Quote ready. Min output: ${amountOutMinimum.toString()}`);
 
       // ── B. Check and handle ERC20 allowance ───────────────────────────
-      const isNativeIn = params.tokenIn.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
       if (!isNativeIn) {
         setStep('checking_allowance');
@@ -292,6 +336,16 @@ export function useSwap(): UseSwapReturn {
 
         if (allowance < amountIn) {
           setStep('approving');
+          console.log(`[useSwap] Current allowance (${allowance.toString()}) < required (${amountIn.toString()}). Approving...`);
+
+          // Simulate first to catch errors
+          await publicClient.simulateContract({
+            address: params.tokenIn,
+            abi: ERC20_ABI,
+            functionName: 'approve',
+            args: [contracts.SWAP_ROUTER, maxUint256],
+            account: address as `0x${string}`,
+          });
 
           const approveHash = await walletClient.writeContract({
             address: params.tokenIn,
