@@ -182,6 +182,16 @@ export function useBridge(): UseBridgeReturn {
         account: getAddress(address),
       });
 
+      // NEW: Check for gas funds before signing
+      console.log('[Bridge] Checking gas balance for:', address);
+      const balance = await ogPublicClient.getBalance({ address: getAddress(address) });
+      console.log('[Bridge] Native balance (A0GI):', formatUnits(balance, 18));
+
+      if (balance === BigInt(0)) {
+        console.error('[Bridge] EXECUTION HALTED: 0 A0GI detected.');
+        throw new Error('Insufficient A0GI for gas. Please fund your wallet to sign on-chain.');
+      }
+
       const recipientBytes32 = getAddress(address).padEnd(66, '0') as `0x${string}`;
       const amountRaw = parseUnits(params.amount, params.tokenDecimals);
       const targetChainId = WORMHOLE_CHAIN_IDS[params.toChainId] || 5;
