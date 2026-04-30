@@ -7,7 +7,7 @@ import {
 } from "@reown/appkit-react-native";
 import { WagmiAdapter } from "@reown/appkit-wagmi-react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { arbitrum, mainnet, polygon, zeroGMainnet, zeroGTestnet, zeroGGalileoTestnet } from "@wagmi/core/chains";
+import { arbitrum, mainnet, polygon, base, zeroGMainnet, zeroGTestnet, zeroGGalileoTestnet } from "@wagmi/core/chains";
 import { WagmiProvider, useAccount } from "wagmi";
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -58,7 +58,7 @@ const metadata = {
   },
 };
 
-const networks = [zeroGGalileoTestnet, zeroGMainnet, polygon];
+const networks = [mainnet, arbitrum, base, polygon, zeroGMainnet, zeroGGalileoTestnet];
 
 const wagmiAdapter = new WagmiAdapter({
   projectId,

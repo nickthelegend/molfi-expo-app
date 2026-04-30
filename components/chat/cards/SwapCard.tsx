@@ -39,6 +39,14 @@ const FALLBACK_ADDRESSES: Record<string, Record<string, string>> = {
     'WMATIC': '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270',
     'USDT': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
   },
+  '8453': {
+    'USDC': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    'WETH': '0x4200000000000000000000000000000000000006',
+  },
+  '42161': {
+    'USDC': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    'WETH': '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+  },
   '16601': {
     'WETH': '0x1Cd0690fF9a693f5EF2dD976660a8dAFc81A109c',
     'USDC': '0x627d32C41D35284050b168925501867160965383',
@@ -195,8 +203,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>SOURCE</Text>
           <TouchableOpacity 
             onPress={() => {
-              const next = fromChain === 16601 ? 137 : 16601;
-              setFromChain(next);
+              const ids = [16601, 137, 8453, 42161, 1];
+              const currentIndex = ids.indexOf(fromChain);
+              const nextIndex = (currentIndex + 1) % ids.length;
+              setFromChain(ids[nextIndex]);
             }}
             style={[styles.dropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
@@ -209,8 +219,10 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>DESTINATION</Text>
           <TouchableOpacity 
             onPress={() => {
-              const next = toChain === 16601 ? 137 : 16601;
-              setToChain(next);
+              const ids = [16601, 137, 8453, 42161, 1];
+              const currentIndex = ids.indexOf(toChain);
+              const nextIndex = (currentIndex + 1) % ids.length;
+              setToChain(ids[nextIndex]);
             }}
             style={[styles.dropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
