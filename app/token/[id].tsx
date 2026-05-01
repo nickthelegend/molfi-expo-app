@@ -185,7 +185,7 @@ export default function TokenDetail() {
               <Ionicons name="logo-twitter" size={20} color="#A0A0A0" />
             </TouchableOpacity>
             <Button
-              onPress={() => router.push({ pathname: '/token/swap', params: { tokenId: id } })}
+              onPress={() => router.push({ pathname: '/swap', params: { tokenId: id } })}
               variant="primary"
               size="large"
               style={{ flex: 1, height: 56 }}

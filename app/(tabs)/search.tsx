@@ -90,14 +90,14 @@ export default function SearchScreen() {
         const symbol = p.symbol.split('-')[0];
 
         return {
-          id: tokenAddr,
+          id: p.pool, // Use unique pool ID instead of token address
+          tokenAddress: tokenAddr,
           symbol: symbol,
-          name: symbol, // Llama doesn't give full name in yields, but symbol is fine
+          name: symbol, 
           priceUSD: priceInfo?.price?.toString() || '0',
           volume24h: p.volumeUsd1d?.toString() || '0',
-          priceChange24h: '0', // Placeholder
+          priceChange24h: '0', 
           chain: p.chain,
-          // Sparkline placeholder
           tokenDayData: Array(10).fill(0).map((_, i) => ({ 
             priceUSD: (priceInfo?.price || 0 * (1 + (Math.random() * 0.1 - 0.05))).toString() 
           }))
@@ -197,7 +197,7 @@ export default function SearchScreen() {
     <Animated.View entering={FadeIn} exiting={FadeOut}>
       <TouchableOpacity 
         style={styles.marketRow} 
-        onPress={() => router.push(`/token/${item.id}`)}
+        onPress={() => router.push(`/token/${item.tokenAddress}`)}
       >
         <View style={styles.rowLeft}>
           <View style={[styles.logoCircle, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>

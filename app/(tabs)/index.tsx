@@ -152,11 +152,10 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Action Row */}
         <View style={styles.actionRow}>
-          <ActionButton icon="swap-horizontal" label="Swap" onPress={() => router.push('/chat')} theme={theme} />
-          <ActionButton icon="arrow-up" label="Send" onPress={() => router.push('/chat')} theme={theme} />
-          <ActionButton icon="repeat" label="Bridge" onPress={() => router.push('/chat')} theme={theme} />
+          <ActionButton icon="swap-horizontal" label="Swap" onPress={() => router.push('/swap')} theme={theme} />
+          <ActionButton icon="arrow-up" label="Send" onPress={() => router.push('/send')} theme={theme} />
+          <ActionButton icon="repeat" label="Bridge" onPress={() => router.push('/bridge')} theme={theme} />
           <ActionButton icon="grid" label="More" onPress={() => {}} theme={theme} />
         </View>
 
