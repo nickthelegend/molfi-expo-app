@@ -40,12 +40,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 18,
     marginBottom: 4,
   },
   description: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
   },
   chartArea: {
@@ -53,3 +53,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

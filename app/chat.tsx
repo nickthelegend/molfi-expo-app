@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   logoText: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 20,
   },
   headerIcons: {
@@ -452,18 +452,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   chainName: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 13,
   },
   greetingContainer: {
     marginBottom: 60,
   },
   greetingTitle: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 48,
   },
   greetingSubtitle: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 32,
     lineHeight: 40,
   },
@@ -485,11 +485,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 16,
   },
   cardDesc: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 16,
     paddingHorizontal: 16,
     maxHeight: 100,
@@ -537,7 +537,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   shortcutText: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 13,
   },
 });
+

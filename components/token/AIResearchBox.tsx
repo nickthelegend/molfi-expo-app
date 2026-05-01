@@ -41,12 +41,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(177, 87, 251, 0.2)',
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 18,
     marginBottom: 8,
   },
   prompt: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: '#ECEDEE',
     marginBottom: 20,
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   placeholderText: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: '#6C6C6C',
   },
@@ -79,3 +79,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

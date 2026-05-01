@@ -128,9 +128,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 20,
-    color: Colors.text,
+    color: '#fff',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     color: Colors.text,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 15,
   },
   listContent: {
@@ -166,13 +166,13 @@ const styles = StyleSheet.create({
   },
   sessionTitle: {
     color: Colors.text,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 16,
     marginBottom: 4,
   },
   sessionMeta: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
   },
   deleteBtn: {
@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: 40,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
   }
 });
+

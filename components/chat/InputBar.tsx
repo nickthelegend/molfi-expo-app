@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingTop: 10,
     color: Colors.text,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 15,
   },
   sendButton: {
@@ -113,7 +113,8 @@ const styles = StyleSheet.create({
   },
   accessoryText: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
   },
 });
+

@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   insightText: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: '#ECEDEE',
     lineHeight: 20,
@@ -79,3 +79,4 @@ const styles = StyleSheet.create({
     color: '#A0A0A0',
   },
 });
+

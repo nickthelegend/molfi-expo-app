@@ -263,12 +263,12 @@ const styles = StyleSheet.create({
     height: 36,
   },
   gmText: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 13,
     color: 'rgba(255,255,255,0.4)',
   },
   usernameText: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 18,
     color: '#fff',
   },
@@ -294,13 +294,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   heroLabel: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Manrope-Medium',
     fontSize: 12,
     color: 'rgba(255,255,255,0.3)',
     marginBottom: 8,
   },
   heroBalance: {
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Bold',
     fontSize: 42,
     color: '#fff',
     marginBottom: 12,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeText: {
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 12,
   },
   actionRow: {
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionLabel: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
   },
@@ -349,12 +349,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 16,
     color: '#fff',
   },
   viewAll: {
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 14,
   },
   agentsScroll: {
@@ -383,17 +383,17 @@ const styles = StyleSheet.create({
   },
   agentAvatarText: {
     color: '#FFF',
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 18,
   },
   agentName: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 13,
     color: '#fff',
     marginBottom: 4,
   },
   agentStatus: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 10,
     color: '#00C896',
   },
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createAgentText: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.3)',
   },
@@ -436,13 +436,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notifTitle: {
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 14,
     color: '#fff',
     marginBottom: 2,
   },
   notifTime: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 11,
     color: 'rgba(255,255,255,0.3)',
   },
@@ -462,8 +462,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   chatFabText: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 14,
     color: '#FFF',
   },
 });
+

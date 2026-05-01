@@ -39,16 +39,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 22,
     color: '#fff',
     marginBottom: 8,
   },
   description: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 16,
     color: '#A0A0A0',
     lineHeight: 24,
     marginBottom: 20,
   },
 });
+

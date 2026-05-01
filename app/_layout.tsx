@@ -26,6 +26,19 @@ if (!(Reanimated as any).useAnimatedGestureHandler) {
 import * as Clipboard from 'expo-clipboard';
 import { Syne_400Regular, Syne_600SemiBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { DMMono_400Regular } from '@expo-google-fonts/dm-mono';
+import { 
+  Manrope_400Regular, 
+  Manrope_500Medium, 
+  Manrope_600SemiBold, 
+  Manrope_700Bold, 
+  Manrope_800ExtraBold 
+} from '@expo-google-fonts/manrope';
+import { 
+  Inter_400Regular, 
+  Inter_500Medium, 
+  Inter_600SemiBold, 
+  Inter_700Bold 
+} from '@expo-google-fonts/inter';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { storage } from "@/utils/StorageUtil";
@@ -124,11 +137,20 @@ export default function RootLayout() {
     KHTekaMedium: require('../assets/fonts/KHTeka-Medium.otf'),
     KHTekaMono: require('../assets/fonts/KHTekaMono-Regular.otf'),
     Syne: Syne_400Regular,
-    'Syne-Regular': Syne_400Regular,
-    'Syne-Medium': Syne_600SemiBold,
-    'Syne-Bold': Syne_700Bold,
-    'DM-Mono-Regular': DMMono_400Regular,
-    'DM-Mono-Medium': DMMono_400Regular, // Use regular if medium not available
+    'Inter-Regular': Syne_400Regular,
+    'Manrope-SemiBold': Syne_600SemiBold,
+    'Manrope-ExtraBold': Syne_700Bold,
+    'Inter-Medium': DMMono_400Regular,
+    'Inter-Bold': DMMono_400Regular, // Use regular if medium not available
+    'Manrope-Regular': Manrope_400Regular,
+    'Manrope-Medium': Manrope_500Medium,
+    'Manrope-SemiBold': Manrope_600SemiBold,
+    'Manrope-Bold': Manrope_700Bold,
+    'Manrope-ExtraBold': Manrope_800ExtraBold,
+    'Inter-Regular': Inter_400Regular,
+    'Inter-Medium': Inter_500Medium,
+    'Inter-SemiBold': Inter_600SemiBold,
+    'Inter-Bold': Inter_700Bold,
   });
 
   if (!loaded) {
@@ -158,5 +180,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
 
 

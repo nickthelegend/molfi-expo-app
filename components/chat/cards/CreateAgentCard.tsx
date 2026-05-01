@@ -169,13 +169,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 11,
     letterSpacing: 1.5,
   },
   headerLogo: {
     color: Colors.primary,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 12,
   },
   infoSection: {
@@ -183,12 +183,12 @@ const styles = StyleSheet.create({
   },
   strategyTitle: {
     color: Colors.text,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 16,
   },
   strategySub: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
   },
   inputGroup: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginBottom: 6,
   },
@@ -208,11 +208,11 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: 12,
     color: Colors.text,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
   },
   balanceText: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 11,
     marginTop: 4,
     textAlign: 'right',
@@ -230,12 +230,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
   },
   detailValue: {
     color: Colors.text,
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 13,
   },
   primaryButton: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFF',
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 16,
   },
   disabledButton: {
@@ -263,20 +263,21 @@ const styles = StyleSheet.create({
   },
   successText: {
     color: Colors.success,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 15,
   },
   txLink: {
     color: Colors.success,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 12,
     marginTop: 4,
   },
   errorText: {
     color: Colors.error,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',
   }
 });
+

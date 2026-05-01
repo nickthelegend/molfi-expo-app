@@ -12,7 +12,7 @@ import { useAccount } from 'wagmi';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
-import { ThemeButton } from '@/components/ui/ThemeButton';
+import { Button } from '@/components/ui/Button';
 import { useRouter } from 'expo-router';
 
 export default function ConnectWalletScreen() {
@@ -86,12 +86,14 @@ export default function ConnectWalletScreen() {
           Link your EVM or Solana wallet to access your AI agents, prediction markets, and portfolio.
         </Text>
 
-        <ThemeButton 
-          title="Connect Wallet" 
+        <Button 
           onPress={handleConnect} 
           loading={isConnecting}
           style={styles.button}
-        />
+          size="lg"
+        >
+          Connect Wallet
+        </Button>
 
         <TouchableOpacity style={styles.secondaryLink}>
           <Text style={styles.secondaryLinkText}>Learn more about Molfi wallets →</Text>
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   logoText: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 24,
     letterSpacing: 2,
   },
@@ -136,13 +138,13 @@ const styles = StyleSheet.create({
     borderRadius: 60,
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 28,
     textAlign: 'center',
     marginBottom: 16,
   },
   subtext: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -156,9 +158,10 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   secondaryLinkText: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: '#6C6C6C',
     textDecorationLine: 'underline',
   },
 });
+

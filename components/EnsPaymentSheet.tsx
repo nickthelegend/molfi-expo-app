@@ -121,24 +121,25 @@ const styles = StyleSheet.create({
   sheetContent: { padding: 24, flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   closeIcon: { padding: 4 },
-  sheetTitle: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#FFFFFF', marginBottom: 4 },
-  sheetDomain: { fontFamily: 'Syne-Bold', fontSize: 24, color: '#00FF94' },
+  sheetTitle: { fontFamily: 'Manrope-Bold', fontSize: 18, color: '#FFFFFF', marginBottom: 4 },
+  sheetDomain: { fontFamily: 'Manrope-ExtraBold', fontSize: 24, color: '#00FF94' },
   priceCard: {
     backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     padding: 16, marginBottom: 24, gap: 12
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { fontFamily: 'Syne-Regular', fontSize: 13, color: 'rgba(255,255,255,0.4)' },
-  rowValue: { fontFamily: 'DM-Mono-Regular', fontSize: 14, color: '#FFFFFF' },
+  rowLabel: { fontFamily: 'Inter-Regular', fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  rowValue: { fontFamily: 'Inter-Bold', fontSize: 14, color: '#FFFFFF' },
   infoBlock: { marginBottom: 32 },
-  infoText: { fontFamily: 'Syne-Regular', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 20 },
-  addressText: { fontFamily: 'DM-Mono-Regular', fontSize: 14, color: '#00FF94', marginTop: 8 },
+  infoText: { fontFamily: 'Inter-Regular', fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 20 },
+  addressText: { fontFamily: 'Inter-Medium', fontSize: 14, color: '#00FF94', marginTop: 8 },
   confirmBtn: {
     backgroundColor: '#00FF94', borderRadius: 28,
     height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 12
   },
-  confirmBtnText: { fontFamily: 'Syne-Bold', fontSize: 16, color: '#000000' },
+  confirmBtnText: { fontFamily: 'Manrope-ExtraBold', fontSize: 16, color: '#000000' },
   skipBtn: { alignItems: 'center', paddingVertical: 12 },
-  skipBtnText: { fontFamily: 'Syne-Regular', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
+  skipBtnText: { fontFamily: 'Inter-Regular', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
 });
+

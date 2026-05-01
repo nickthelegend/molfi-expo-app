@@ -97,16 +97,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   agentLabel: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: '#A0A0A0',
   },
   editText: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
   },
   portfolioValue: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 32,
     color: '#fff',
     marginBottom: 8,
@@ -150,8 +150,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionLabel: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: '#A0A0A0',
   },
 });
+

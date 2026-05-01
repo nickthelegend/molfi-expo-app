@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: '#6C6C6C',
   },
@@ -35,3 +35,4 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+

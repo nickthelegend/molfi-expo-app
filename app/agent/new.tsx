@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, height: 60 },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff' },
+  headerTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 18, color: '#fff' },
   progressContainer: { paddingHorizontal: 24, paddingVertical: 10 },
   progressLine: { height: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%' },
@@ -673,40 +673,40 @@ const styles = StyleSheet.create({
   slideContainer: { flexDirection: 'row', width: width * 4, flex: 1 },
   stepPage: { width: width, flex: 1 },
   stepContent: { padding: 24 },
-  sectionTitle: { fontFamily: 'Syne-Bold', fontSize: 24, color: '#fff', marginBottom: 32 },
+  sectionTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 24, color: '#fff', marginBottom: 32 },
   inputGroup: { marginBottom: 32 },
-  label: { fontFamily: 'Syne-Medium', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 12 },
-  input: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, color: '#fff', fontFamily: 'Syne-Regular', fontSize: 16 },
+  label: { fontFamily: 'Manrope-SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 12 },
+  input: { backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: 18, color: '#fff', fontFamily: 'Inter-Regular', fontSize: 16 },
   multilineInput: { height: 120, textAlignVertical: 'top' },
-  helperText: { fontFamily: 'Syne-Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 },
+  helperText: { fontFamily: 'Inter-Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 },
   colorRow: { flexDirection: 'row', gap: 12 },
   colorCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   activeColor: { borderWidth: 2, borderColor: '#fff' },
   previewContainer: { marginTop: 16 },
   previewCard: { backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)' },
   avatarLarge: { width: 80, height: 80, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  avatarLargeText: { color: '#fff', fontFamily: 'Syne-Bold', fontSize: 32 },
-  previewName: { fontFamily: 'Syne-Bold', fontSize: 20, color: '#fff' },
+  avatarLargeText: { color: '#fff', fontFamily: 'Manrope-ExtraBold', fontSize: 32 },
+  previewName: { fontFamily: 'Manrope-Bold', fontSize: 20, color: '#fff' },
   marketToggleRow: { flexDirection: 'row', gap: 12 },
   marketToggle: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingVertical: 14, gap: 10 },
-  marketToggleText: { fontFamily: 'Syne-Bold', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
+  marketToggleText: { fontFamily: 'Manrope-Bold', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
   strategyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   strategyCard: { width: (width - 60) / 2, padding: 20, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', gap: 12, position: 'relative' },
-  strategyName: { fontFamily: 'Syne-Bold', fontSize: 16, color: '#fff' },
-  strategyDesc: { fontFamily: 'Syne-Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 18 },
+  strategyName: { fontFamily: 'Manrope-Bold', fontSize: 16, color: '#fff' },
+  strategyDesc: { fontFamily: 'Inter-Regular', fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 18 },
   checkBadge: { position: 'absolute', top: 12, right: 12, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
   sliderContainer: { height: 40, justifyContent: 'center', position: 'relative' },
   sliderTrack: { height: 4, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2 },
   sliderFill: { height: 4, position: 'absolute', borderRadius: 2 },
   sliderThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#0A0A0A', borderWidth: 4, position: 'absolute', marginLeft: -10 },
   reviewCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 24, marginTop: 24 },
-  reviewTitle: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff', marginBottom: 20 },
+  reviewTitle: { fontFamily: 'Manrope-Bold', fontSize: 18, color: '#fff', marginBottom: 20 },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  reviewLabel: { fontFamily: 'Syne-Regular', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  reviewValue: { fontFamily: 'Syne-Medium', fontSize: 14, color: '#fff' },
+  reviewLabel: { fontFamily: 'Inter-Regular', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
+  reviewValue: { fontFamily: 'Manrope-SemiBold', fontSize: 14, color: '#fff' },
   footer: { padding: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   primaryBtn: { height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
-  primaryBtnText: { fontFamily: 'Syne-Bold', fontSize: 18, color: '#fff' },
+  primaryBtnText: { fontFamily: 'Manrope-ExtraBold', fontSize: 18, color: '#fff' },
   disabledBtn: { opacity: 0.5 },
   loadingOverlay: { 
     ...StyleSheet.absoluteFillObject, 
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   },
   loadingContent: { width: '80%', alignItems: 'center' },
   loadingTitle: { 
-    fontFamily: 'Syne-Bold', 
+    fontFamily: 'Manrope-Bold', 
     fontSize: 12, 
     color: 'rgba(255,255,255,0.4)', 
     letterSpacing: 2, 
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,255,148,0.2)'
   },
   terminalText: { 
-    fontFamily: 'DM-Mono-Regular', 
+    fontFamily: 'Inter-Medium', 
     fontSize: 16, 
     color: '#00FF94' 
   },
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
     marginLeft: 8 
   },
   previewEns: {
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 14,
     color: '#00FF94',
     marginTop: 4
@@ -763,23 +763,23 @@ const styles = StyleSheet.create({
   ensSubInput: {
     flex: 1,
     color: '#fff',
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 16
   },
   ensSuffix: {
     color: 'rgba(255,255,255,0.3)',
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16
   },
   ensError: {
     color: '#FF3B30',
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginTop: 8
   },
   ensSuccess: {
     color: '#00FF94',
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginTop: 8
   },
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
     marginBottom: 24
   },
   paymentDomainLabel: {
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 12,
     color: 'rgba(0,255,148,0.6)',
     textTransform: 'uppercase',
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   paymentDomainValue: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 28,
     color: '#fff'
   },
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   availabilityText: {
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 14
   },
   paymentInfoBox: {
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   },
   paymentInfoText: {
     flex: 1,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
     color: 'rgba(255,255,255,0.5)',
     lineHeight: 18
@@ -843,12 +843,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   priceLabel: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: 'rgba(255,255,255,0.4)'
   },
   priceValue: {
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 14,
     color: '#fff'
   },
@@ -857,8 +857,9 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   skipEnsText: {
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 14,
     color: 'rgba(255,255,255,0.3)'
   }
 });
+

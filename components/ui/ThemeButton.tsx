@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   baseText: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
   },
   primaryText: {
@@ -87,3 +87,4 @@ const styles = StyleSheet.create({
   secondaryText: {},
   outlineText: {},
 });
+

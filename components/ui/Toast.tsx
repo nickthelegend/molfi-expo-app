@@ -162,11 +162,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 15,
   },
   description: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
     color: '#A0A0A0',
     marginTop: 2,
@@ -176,3 +176,4 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+

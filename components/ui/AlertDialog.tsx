@@ -109,12 +109,12 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   title: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 20,
     marginBottom: 12,
   },
   description: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 15,
     color: '#A0A0A0',
     lineHeight: 22,
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cancelText: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 15,
     color: '#6C6C6C',
   },
@@ -143,3 +143,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
   }
 });
+

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAccount as useAppKitAccount, useAppKit } from '@reown/appkit-react-native';
 import { useDisconnect, useEnsName } from 'wagmi';
 import { Colors } from '@/constants/Colors';
@@ -100,18 +101,27 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Profile Section */}
         <View style={styles.profileSection}>
-          <TouchableOpacity onPress={handleOpenWallet} style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: avatarUrl }} 
-              style={styles.avatar}
-              contentFit="cover"
-            />
+          <TouchableOpacity onPress={handleOpenWallet} style={styles.avatarWrapper}>
+            <LinearGradient
+              colors={['#b157fb', '#00C896', '#5856D6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.avatarGradient}
+            >
+              <View style={styles.avatarInner}>
+                <Image 
+                  source={{ uri: avatarUrl }} 
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              </View>
+            </LinearGradient>
             <View style={[styles.editBadge, { backgroundColor: theme.primary }]}>
               <Ionicons name="wallet" size={12} color="#fff" />
             </View>
           </TouchableOpacity>
 
-          <Text style={[styles.displayName, isConnected && !ensName && { fontFamily: 'DMMono_400Regular', fontSize: 20 }]}>
+          <Text style={[styles.displayName, isConnected && !ensName && { fontFamily: 'Inter-Medium', fontSize: 20 }]}>
             {isConnected ? (ensName || `${address?.slice(0, 6)}...${address?.slice(-4)}`) : 'Not Connected'}
           </Text>
           <TouchableOpacity onPress={handleOpenWallet} style={styles.walletPill}>
@@ -175,7 +185,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   headerTitle: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 20,
     color: '#fff',
   },
@@ -186,17 +196,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: 24,
+    shadowColor: '#b157fb',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  avatarGradient: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 55,
+    backgroundColor: '#0A0A0A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   editBadge: {
     position: 'absolute',
@@ -211,7 +240,7 @@ const styles = StyleSheet.create({
     borderColor: '#0A0A0A',
   },
   displayName: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 24,
     color: '#fff',
     marginBottom: 8,
@@ -225,7 +254,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   walletPillText: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 14,
     color: '#A0A0A0',
   },
@@ -234,7 +263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   groupLabel: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 12,
     color: 'rgba(255,255,255,0.3)',
     textTransform: 'uppercase',
@@ -265,12 +294,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-Bold',
     fontSize: 16,
     color: '#fff',
   },
   settingSubtitle: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
     marginTop: 2,
@@ -285,15 +314,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutText: {
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 16,
     color: '#FF3B30',
   },
   versionText: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: 'rgba(255,255,255,0.2)',
     textAlign: 'center',
     marginTop: 24,
   },
 });
+

@@ -128,13 +128,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 11,
     letterSpacing: 1.5,
   },
   headerLogo: {
     color: Colors.primary,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 12,
   },
   section: {
@@ -142,23 +142,23 @@ const styles = StyleSheet.create({
   },
   label: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
     marginBottom: 4,
   },
   value: {
     color: Colors.text,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
   },
   amountText: {
     color: Colors.text,
-    fontFamily: 'DM-Mono-Medium',
+    fontFamily: 'Inter-Bold',
     fontSize: 24,
   },
   usdValue: {
     color: Colors.textMuted,
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 14,
   },
   ensBadge: {
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   ensAddress: {
     color: Colors.textMuted,
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 12,
   },
   greenBadge: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   greenBadgeText: {
     color: Colors.success,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 10,
   },
   detailsContainer: {
@@ -196,12 +196,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: Colors.textMuted,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 13,
   },
   detailValue: {
     color: Colors.text,
-    fontFamily: 'DM-Mono-Regular',
+    fontFamily: 'Inter-Medium',
     fontSize: 13,
   },
   primaryButton: {
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFF',
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 16,
   },
   disabledButton: {
@@ -229,21 +229,22 @@ const styles = StyleSheet.create({
   },
   successText: {
     color: Colors.success,
-    fontFamily: 'Syne-Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 15,
   },
   txLink: {
     color: Colors.success,
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 12,
     marginTop: 4,
     textDecorationLine: 'underline',
   },
   errorText: {
     color: Colors.error,
-    fontFamily: 'Syne-Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',
   }
 });
+

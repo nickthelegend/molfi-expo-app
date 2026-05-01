@@ -92,7 +92,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabText: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 14,
   },
 });
+

@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   text: {
-    fontFamily: 'Syne-Medium',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
     lineHeight: 22,
   },
@@ -71,3 +71,4 @@ const styles = StyleSheet.create({
     width: '100%',
   }
 });
+

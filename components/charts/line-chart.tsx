@@ -77,3 +77,4 @@ export function LineChart({ data, config }: LineChartProps) {
     </View>
   );
 }
+

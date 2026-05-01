@@ -170,14 +170,14 @@ const styles = StyleSheet.create({
     flex: 0.3,
   },
   title: {
-    fontFamily: 'KHTekaMedium',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 32,
     marginBottom: 10,
     color: '#b157fb', // primary color
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Inter-Regular',
     color: '#ECEDEE',
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -211,14 +211,15 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   buttonText: {
-    fontFamily: 'KHTekaMedium',
+    fontFamily: 'Manrope-SemiBold',
     color: '#FFFFFF',
     fontSize: 18,
   },
   skipButton: {
-    fontFamily: 'KHTeka',
+    fontFamily: 'Inter-Medium',
     color: '#A0A0A0',
     fontSize: 16,
   },
 
 });
+

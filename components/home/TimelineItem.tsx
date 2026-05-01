@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   iconText: {
     color: '#fff',
-    fontFamily: 'Syne_700Bold',
+    fontFamily: 'Manrope-ExtraBold',
     fontSize: 20,
   },
   middle: {
@@ -109,12 +109,12 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   ticker: {
-    fontFamily: 'Syne_600SemiBold',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
     color: '#fff',
   },
   time: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 12,
     color: '#6C6C6C',
     marginTop: 2,
@@ -133,8 +133,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusText: {
-    fontFamily: 'Syne_400Regular',
+    fontFamily: 'Inter-Regular',
     fontSize: 10,
     fontWeight: '600',
   },
 });
+
