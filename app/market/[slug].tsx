@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
-import Svg, { Polyline, Defs, LinearGradient as SvgGradient, Stop, Path } from 'react-native-svg';
 import { format } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
@@ -23,6 +22,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Skeleton } from '@/components/ui/Skeleton';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { BettingSheet } from '@/components/BettingSheet';
+import { ModernLineChart } from '@/components/charts/modern-line-chart';
 
 const { width } = Dimensions.get('window');
 
@@ -109,30 +109,20 @@ export default function MarketDetailScreen() {
   const renderChart = () => {
     if (!history.length) return <View style={styles.chartPlaceholder} />;
     
-    const prices = history.map(h => h.p);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const range = max - min || 0.1;
-    
-    const points = history.map((h, i) => {
-      const x = (i / (history.length - 1)) * (width - 40);
-      const y = 160 - ((h.p - min) / range) * 120 - 20;
-      return `${x},${y}`;
-    }).join(' ');
-
-    const positive = prices[prices.length - 1] >= prices[0];
-    const chartColor = positive ? '#00C896' : theme.primary;
+    const chartData = history.map(h => ({
+      x: format(new Date(h.t * 1000), 'HH:mm'),
+      y: h.p,
+      label: format(new Date(h.t * 1000), 'MMM dd, HH:mm')
+    }));
 
     return (
       <View style={styles.chartContainer}>
-        <Svg width={width - 40} height="160">
-          <Polyline
-            points={points}
-            fill="none"
-            stroke={chartColor}
-            strokeWidth="2"
-          />
-        </Svg>
+        <ModernLineChart 
+          data={chartData}
+          height={160}
+          color={chartData[chartData.length - 1].y >= chartData[0].y ? '#00C896' : theme.primary}
+          hideYAxis
+        />
         <View style={styles.chartLabels}>
           <Text style={styles.chartLabelText}>0%</Text>
           <Text style={styles.chartLabelText}>100%</Text>

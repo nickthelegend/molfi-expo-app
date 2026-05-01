@@ -14,9 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AIResearchBox } from '@/components/token/AIResearchBox';
-import Svg, { Polyline, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { Skeleton } from '@/components/ui/Skeleton';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
+import { ModernLineChart } from '@/components/charts/modern-line-chart';
+import { Button } from '@/components/ui/Button';
 
 const { width } = Dimensions.get('window');
 const UNISWAP_V3_SUBGRAPH = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3';
@@ -89,26 +90,25 @@ export default function TokenDetail() {
   }, [dayData]);
 
   const renderChart = () => {
-    if (chartData.length < 2) return <View style={styles.chartPlaceholder} />;
+    if (dayData.length < 2) return <View style={styles.chartPlaceholder} />;
 
-    const min = Math.min(...chartData);
-    const max = Math.max(...chartData);
-    const range = max - min || 0.1;
-    
-    const points = chartData.map((p, i) => {
-      const x = (i / (chartData.length - 1)) * (width - 40);
-      const y = 200 - ((p - min) / range) * 160 - 20;
-      return `${x},${y}`;
-    }).join(' ');
+    const chartDataFormatted = dayData.map((d, i) => ({
+      x: i === 0 ? 'Now' : i === 1 ? '24h' : '',
+      y: parseFloat(d.priceUSD),
+      label: i === 0 ? 'Current Price' : 'Previous Price'
+    })).reverse();
 
-    const positive = chartData[chartData.length - 1] >= chartData[0];
+    const positive = chartDataFormatted[chartDataFormatted.length - 1].y >= chartDataFormatted[0].y;
     const color = positive ? '#00C896' : theme.primary;
 
     return (
       <View style={styles.chartContainer}>
-        <Svg width={width - 40} height="200">
-          <Polyline points={points} fill="none" stroke={color} strokeWidth="2.5" />
-        </Svg>
+        <ModernLineChart 
+          data={chartDataFormatted}
+          height={200}
+          color={color}
+          hideYAxis
+        />
       </View>
     );
   };
@@ -184,12 +184,15 @@ export default function TokenDetail() {
             <TouchableOpacity style={styles.socialButton}>
               <Ionicons name="logo-twitter" size={20} color="#A0A0A0" />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.getButton, { backgroundColor: theme.primary }]}
+            <Button
               onPress={() => router.push({ pathname: '/token/swap', params: { tokenId: id } })}
+              variant="primary"
+              size="large"
+              style={{ flex: 1, height: 56 }}
+              icon="swap-horizontal"
             >
-              <Text style={styles.getButtonText}>Trade</Text>
-            </TouchableOpacity>
+              Trade
+            </Button>
           </View>
 
           <Text style={styles.description}>

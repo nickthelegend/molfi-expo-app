@@ -255,7 +255,7 @@ export default function AgentsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="brain-outline" size={48} color="rgba(255,255,255,0.1)" />
+                <Ionicons name="sparkles-outline" size={48} color="rgba(255,255,255,0.1)" />
               </View>
               <Text style={styles.emptyTitle}>No Agents Yet</Text>
               <Text style={styles.emptySubtitle}>Create your first AI trading agent to start automating your strategy.</Text>

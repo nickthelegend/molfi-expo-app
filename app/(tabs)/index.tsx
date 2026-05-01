@@ -20,7 +20,7 @@ import Animated, { FadeInDown, SlideInRight, useSharedValue, useAnimatedStyle, w
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { useBalance, useEnsName } from 'wagmi';
 import { API_URL } from '@/constants/Config';
-import { AreaChart } from '@/components/charts/area-chart';
+import { ModernLineChart } from '@/components/charts/modern-line-chart';
 
 const sampleData = [
   { x: 'Jan', y: 65000, label: 'January' },
@@ -162,17 +162,9 @@ export default function HomeScreen() {
 
         {/* Performance Chart */}
         <View style={styles.chartSection}>
-          <AreaChart 
+          <ModernLineChart 
             data={sampleData} 
-            config={{
-              height: 280,
-              showGrid: true,
-              showLabels: false,
-              animated: true,
-              duration: 2500,
-              showYLabels: true,
-              yLabelCount: 7,
-            }} 
+            height={280}
           />
         </View>
 
