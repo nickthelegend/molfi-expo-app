@@ -28,9 +28,14 @@ export function useEnsSubdomain() {
    * available if no owner is found.
    */
   const checkAvailability = useCallback(async (fullDomain: string): Promise<boolean> => {
-    if (!publicClient) return false;
+    if (!publicClient) {
+      console.warn('[useEnsSubdomain] publicClient not ready for availability check');
+      return false;
+    }
+    console.log('[useEnsSubdomain] checkAvailability for:', fullDomain);
     try {
       const owner = await publicClient.getEnsAddress({ name: fullDomain });
+      console.log('[useEnsSubdomain] Owner for', fullDomain, 'is:', owner);
       return owner === null || owner === '0x0000000000000000000000000000000000000000';
     } catch (error) {
       console.error('[useEnsSubdomain] Availability check failed:', error);
@@ -43,7 +48,7 @@ export function useEnsSubdomain() {
    * For personal ENS subdomains, this is usually 0 (gas only).
    */
   const fetchPrice = useCallback(async (fullDomain: string, durationYears: number): Promise<string> => {
-    // Standard ENS subnodes created via setSubnodeOwner don't have a protocol-level fee
+    console.log('[useEnsSubdomain] fetchPrice for:', fullDomain);
     return '0';
   }, []);
 
@@ -56,7 +61,10 @@ export function useEnsSubdomain() {
     agentWalletAddress: string,
     durationYears: number
   ): Promise<{ txHash: string; success: boolean }> => {
+    console.log('[useEnsSubdomain] registerSubdomain started:', { fullDomain, agentWalletAddress, durationYears });
+    
     if (!walletClient || !publicClient || !userAddress) {
+      console.error('[useEnsSubdomain] Missing client or user address:', { walletClient: !!walletClient, publicClient: !!publicClient, userAddress });
       throw new Error('Wallet not connected or client not initialized');
     }
 
@@ -68,7 +76,13 @@ export function useEnsSubdomain() {
       const parentNode = namehash(parentDomain);
       const labelHash = labelhash(label);
 
-      console.log(`[useEnsSubdomain] Registering ${fullDomain} to ${agentWalletAddress}`);
+      console.log('[useEnsSubdomain] Registration Params:', {
+        address: ENS_REGISTRY_ADDRESS,
+        parentNode,
+        label,
+        labelHash,
+        agentWalletAddress
+      });
 
       const hash = await walletClient.writeContract({
         address: ENS_REGISTRY_ADDRESS,
@@ -78,14 +92,17 @@ export function useEnsSubdomain() {
         account: userAddress,
       });
 
+      console.log('[useEnsSubdomain] Transaction sent. Hash:', hash);
+
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      console.log('[useEnsSubdomain] Transaction receipt:', receipt);
       
       return { 
         txHash: hash, 
         success: receipt.status === 'success' 
       };
     } catch (error: any) {
-      console.error('[useEnsSubdomain] Registration failed:', error);
+      console.error('[useEnsSubdomain] Registration failed error:', error);
       throw error;
     }
   }, [walletClient, publicClient, userAddress]);

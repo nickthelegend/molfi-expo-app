@@ -34,7 +34,7 @@ const STRATEGIES = [
   { id: 'DCA', name: 'DCA', desc: 'Dollar Cost Averaging', icon: 'trending-up-outline' },
   { id: 'Momentum', name: 'Momentum', desc: 'Trend Following', icon: 'flash-outline' },
   { id: 'Arbitrage', name: 'Arbitrage', desc: 'Cross-DEX Arbitrage', icon: 'swap-horizontal-outline' },
-  { id: 'AI Free Form', name: 'AI Free Form', desc: 'Natural Language Strategy', icon: 'brain-outline' },
+  { id: 'AI Free Form', name: 'AI Free Form', desc: 'Natural Language Strategy', icon: 'hardware-chip-outline' },
 ];
 
 const AVATAR_COLORS = ['#b157fb', '#FF3B30', '#00C896', '#FF9500', '#5856D6', '#AF52DE'];
@@ -108,10 +108,21 @@ export default function NewAgentScreen() {
   }, [isSubmitting]);
 
   React.useEffect(() => {
+    console.log('[NewAgent] Component mounted. Address:', address);
+  }, []);
+
+  React.useEffect(() => {
     if (debouncedDomain) {
+      console.log('[NewAgent] Checking ENS availability for:', debouncedDomain);
       setCheckingEns(true);
       checkAvailability(debouncedDomain)
-        .then(setEnsAvailable)
+        .then((available) => {
+          console.log('[NewAgent] ENS availability result:', available);
+          setEnsAvailable(available);
+        })
+        .catch((err) => {
+          console.error('[NewAgent] ENS availability error:', err);
+        })
         .finally(() => setCheckingEns(false));
     } else {
       setEnsAvailable(null);
@@ -128,128 +139,168 @@ export default function NewAgentScreen() {
   };
 
   const nextStep = () => {
+    console.log('[NewAgent] nextStep called. Current Step:', step);
     if (step === 3 && !agentEnsSub) {
-      // Skip ENS payment step if no subdomain entered
+      console.log('[NewAgent] No ENS subdomain entered, skipping Step 4 and calling handleSubmit directly');
       handleSubmit();
       return;
     }
     if (step < 4) {
+      console.log('[NewAgent] Navigating to Step:', step + 1);
       setStep(s => s + 1);
       slideOffset.value = step;
     }
   };
 
   const prevStep = () => {
+    console.log('[NewAgent] prevStep called. Current Step:', step);
     if (step > 1) {
       setStep(s => s - 1);
       slideOffset.value = step - 2;
     } else {
+      console.log('[NewAgent] At step 1, navigating back');
       router.back();
     }
   };
 
   const handleEnsPayAndCreateAgent = async () => {
-    if (!address || !name || !strategy || !funding) return;
+    console.log('[NewAgent] handleEnsPayAndCreateAgent started');
+    if (!address || !name || !strategy || !funding) {
+      console.warn('[NewAgent] Missing required fields for creation:', { address, name, strategy, funding });
+      return;
+    }
     
     setIsSubmitting(true);
     setLoadingText('Initializing OWS Wallet...');
     
     try {
       // STEP 1: Call API to create agent wallet via OWS
+      console.log('[NewAgent] STEP 1: Calling /api/agents/init');
+      const initPayload = {
+        walletAddress: address,
+        name,
+        avatarColor,
+      };
+      console.log('[NewAgent] Init Payload:', initPayload);
+
       const initRes = await fetch(`${API_URL}/agents/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: address,
-          name,
-          avatarColor,
-        })
+        body: JSON.stringify(initPayload)
       });
+      
       const initJson = await initRes.json();
+      console.log('[NewAgent] Init Response:', initJson);
+
       if (!initJson.success) throw new Error(initJson.error || 'Initialization failed');
       
       const { agentId, agentWalletAddress } = initJson;
+      console.log('[NewAgent] Agent Initialized:', { agentId, agentWalletAddress });
 
       // STEP 2: Register ENS subdomain on-chain (user signs)
       setLoadingText('Awaiting ENS Signature...');
+      console.log('[NewAgent] STEP 2: Registering ENS subdomain:', fullEnsDomain);
+      
       const { txHash, success } = await registerSubdomain(
         fullEnsDomain!,
         agentWalletAddress,
         selectedDuration
       );
+      
+      console.log('[NewAgent] ENS Registration result:', { txHash, success });
 
       if (!success) throw new Error('ENS registration transaction failed');
 
       // STEP 3: Finalize agent with ENS metadata
       setLoadingText('Finalizing Identity...');
+      console.log('[NewAgent] STEP 3: Finalizing agent:', agentId);
+      
+      const finalizePayload = {
+        ensSubdomain: fullEnsDomain,
+        ensTxHash: txHash,
+        market: marketType,
+        strategy,
+        funding: parseFloat(funding),
+        riskLevel,
+        tradingPairs,
+        freeFormPrompt: strategy === 'AI Free Form' ? freeFormPrompt : null
+      };
+      console.log('[NewAgent] Finalize Payload:', finalizePayload);
+
       const finalizeRes = await fetch(`${API_URL}/agents/${agentId}/finalize`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ensSubdomain: fullEnsDomain,
-          ensTxHash: txHash,
-          market: marketType,
-          strategy,
-          funding: parseFloat(funding),
-          riskLevel,
-          tradingPairs,
-          freeFormPrompt: strategy === 'AI Free Form' ? freeFormPrompt : null
-        })
+        body: JSON.stringify(finalizePayload)
       });
 
       const finalizeJson = await finalizeRes.json();
+      console.log('[NewAgent] Finalize Response:', finalizeJson);
+
       if (finalizeJson.success) {
         setLoadingText('Agent Live!');
+        console.log('[NewAgent] Agent Creation Complete. Navigating to agents list.');
         setTimeout(() => router.replace('/(tabs)/agents'), 1000);
       } else {
         throw new Error(finalizeJson.error || 'Finalization failed');
       }
 
     } catch (error: any) {
-      console.error('ENS Create agent error:', error);
+      console.error('[NewAgent] ENS Create agent error:', error);
       alert(error.message || 'An error occurred during creation.');
       setIsSubmitting(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!address || !name || !strategy || !funding) return;
+    console.log('[NewAgent] handleSubmit (Single Step) started');
+    if (!address || !name || !strategy || !funding) {
+      console.warn('[NewAgent] Missing required fields for creation:', { address, name, strategy, funding });
+      return;
+    }
     
     setIsSubmitting(true);
     setLoadingText('Initializing OWS Wallet...');
     
     try {
       // One-step creation (no ENS registration)
+      console.log('[NewAgent] Calling /api/agents (One-step)');
+      const payload = {
+        walletAddress: address,
+        name,
+        strategy,
+        market: marketType,
+        avatarColor,
+        createEns: false,
+        config: {
+          initialFunding: parseFloat(funding),
+          riskLevel,
+          maxPositionPct,
+          tradingPairs,
+          freeFormPrompt: strategy === 'AI Free Form' ? freeFormPrompt : null
+        }
+      };
+      console.log('[NewAgent] Payload:', payload);
+
       const res = await fetch(`${API_URL}/agents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: address,
-          name,
-          strategy,
-          market: marketType,
-          avatarColor,
-          createEns: false,
-          config: {
-            initialFunding: parseFloat(funding),
-            riskLevel,
-            maxPositionPct,
-            tradingPairs,
-            freeFormPrompt: strategy === 'AI Free Form' ? freeFormPrompt : null
-          }
-        })
+        body: JSON.stringify(payload)
       });
       
       const json = await res.json();
+      console.log('[NewAgent] Response:', json);
+
       if (json.success) {
         setLoadingText('Agent Live!');
+        console.log('[NewAgent] Agent Creation Complete. Navigating to agents list.');
         setTimeout(() => router.replace('/(tabs)/agents'), 1000);
       } else {
+        console.error('[NewAgent] Creation failed:', json.error);
         alert('Creation failed: ' + json.error);
         setIsSubmitting(false);
       }
     } catch (error) {
-      console.error('Create agent error:', error);
+      console.error('[NewAgent] Create agent error:', error);
       alert('A network error occurred.');
       setIsSubmitting(false);
     }
@@ -389,7 +440,7 @@ export default function NewAgentScreen() {
                 { id: 'Market Making', name: 'Market Making', desc: 'Provide Liquidity', icon: 'water-outline' },
                 { id: 'Event Arbitrage', name: 'Event Arb', desc: 'Cross-market arb', icon: 'git-compare-outline' },
                 { id: 'Sentiment AI', name: 'Sentiment', desc: 'Social Media Analysis', icon: 'chatbubbles-outline' },
-                { id: 'AI Free Form', name: 'AI Free Form', desc: 'Custom Logic', icon: 'brain-outline' },
+                { id: 'AI Free Form', name: 'AI Free Form', desc: 'Custom Logic', icon: 'hardware-chip-outline' },
               ]).map(item => (
                 <TouchableOpacity 
                   key={item.id}

@@ -41,13 +41,30 @@ export function EnsPaymentSheet({
   const priceUsd = parseFloat(priceEth) * ethUsdPrice;
   const isGasOnly = priceEth === '0';
 
+  const onConfirmLogged = () => {
+    console.log('[EnsPaymentSheet] User clicked Confirm & Register for domain:', fullDomain);
+    onConfirm();
+  };
+
+  const onSkipLogged = () => {
+    console.log('[EnsPaymentSheet] User clicked Skip for domain:', fullDomain);
+    onSkip();
+  };
+
+  const onCloseLogged = () => {
+    console.log('[EnsPaymentSheet] User closed sheet');
+    onClose();
+  };
+
   if (!isVisible) return null;
+
+  console.log('[EnsPaymentSheet] Displaying sheet for domain:', fullDomain);
 
   return (
     <BottomSheet
       index={0}
       snapPoints={snapPoints}
-      onClose={onClose}
+      onClose={onCloseLogged}
       enablePanDownToClose
       backgroundStyle={styles.sheetBg}
       backdropComponent={(props) => (
@@ -61,7 +78,7 @@ export function EnsPaymentSheet({
             <Text style={styles.sheetTitle}>Register ENS Subdomain</Text>
             <Text style={styles.sheetDomain}>{fullDomain}</Text>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
+          <TouchableOpacity onPress={onCloseLogged} style={styles.closeIcon}>
             <Ionicons name="close" size={24} color="rgba(255,255,255,0.3)" />
           </TouchableOpacity>
         </View>
@@ -85,13 +102,13 @@ export function EnsPaymentSheet({
         </View>
 
         {/* CTAs */}
-        <TouchableOpacity style={styles.confirmBtn} onPress={onConfirm}>
+        <TouchableOpacity style={styles.confirmBtn} onPress={onConfirmLogged}>
           <Text style={styles.confirmBtnText}>
             {isGasOnly ? 'Register (Gas Only)' : `Pay ${priceEth} ETH & Register`}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
+        <TouchableOpacity style={styles.skipBtn} onPress={onSkipLogged}>
           <Text style={styles.skipBtnText}>Skip — Create Agent Without ENS</Text>
         </TouchableOpacity>
       </BottomSheetView>
