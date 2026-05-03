@@ -17,12 +17,15 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import * as Reanimated from 'react-native-reanimated';
+
+// Reanimated 4 / Legacy BottomSheet Compatibility Shims
 if (!(Reanimated as any).useWorkletCallback) {
   (Reanimated as any).useWorkletCallback = (cb: any) => cb;
 }
 if (!(Reanimated as any).useAnimatedGestureHandler) {
   (Reanimated as any).useAnimatedGestureHandler = () => ({});
 }
+
 import * as Clipboard from 'expo-clipboard';
 import { Syne_400Regular, Syne_600SemiBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { DMMono_400Regular } from '@expo-google-fonts/dm-mono';
@@ -90,7 +93,7 @@ const appkit = createAppKit({
   enableAnalytics: false,
 });
 
-import { registerForPushNotificationsAsync, useNotificationNavigation } from '@/hooks/useNotifications';
+// import { registerForPushNotificationsAsync, useNotificationNavigation } from '@/hooks/useNotifications';
 
 function RootContent() {
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
@@ -101,13 +104,13 @@ function RootContent() {
   console.log(`[Root] Account Status: ${status}, Connected: ${isConnected}, Address: ${address}`);
   console.log(`[Root] Navigator Online: ${global.navigator?.onLine}`);
 
-  useNotificationNavigation(router);
+  // useNotificationNavigation(router);
 
-  useEffect(() => {
-    if (isConnected && address) {
-      registerForPushNotificationsAsync(address);
-    }
-  }, [isConnected, address]);
+  // useEffect(() => {
+  //   if (isConnected && address) {
+  //     registerForPushNotificationsAsync(address);
+  //   }
+  // }, [isConnected, address]);
 
   useEffect(() => {
     // Wait for onboarding state to load

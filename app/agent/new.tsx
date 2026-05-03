@@ -16,6 +16,8 @@ import Animated, {
   useSharedValue, 
   withSpring, 
   withTiming,
+  withRepeat,
+  withSequence,
   runOnJS
 } from 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
@@ -43,6 +45,9 @@ export default function NewAgentScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const router = useRouter();
+  const routerRef = React.useRef(router);
+  React.useEffect(() => { routerRef.current = router; }, [router]);
+
   const { address } = useAppKitAccount();
   const { data: balance } = useBalance({ address: address as `0x${string}` });
   const { data: userEns } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
@@ -91,19 +96,16 @@ export default function NewAgentScreen() {
 
   React.useEffect(() => {
     if (isSubmitting) {
-      cursorOpacity.value = withTiming(1, { duration: 500 }, (finished) => {
-        if (finished) {
-          cursorOpacity.value = withTiming(0, { duration: 500 });
-        }
-      });
-      const interval = setInterval(() => {
-        cursorOpacity.value = withTiming(1, { duration: 500 }, (finished) => {
-          if (finished) {
-            cursorOpacity.value = withTiming(0, { duration: 500 });
-          }
-        });
-      }, 1000);
-      return () => clearInterval(interval);
+      cursorOpacity.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 500 }),
+          withTiming(0, { duration: 500 })
+        ),
+        -1, // infinite
+        true // reverse
+      );
+    } else {
+      cursorOpacity.value = 0;
     }
   }, [isSubmitting]);
 
@@ -163,7 +165,7 @@ export default function NewAgentScreen() {
     }
   };
 
-  const handleEnsPayAndCreateAgent = async () => {
+  const handleEnsPayAndCreateAgent = React.useCallback(async () => {
     console.log('[NewAgent] handleEnsPayAndCreateAgent started');
     if (!address || !name || !strategy || !funding) {
       console.warn('[NewAgent] Missing required fields for creation:', { address, name, strategy, funding });
@@ -239,7 +241,7 @@ export default function NewAgentScreen() {
       if (finalizeJson.success) {
         setLoadingText('Agent Live!');
         console.log('[NewAgent] Agent Creation Complete. Navigating to agents list.');
-        setTimeout(() => router.replace('/(tabs)/agents'), 1000);
+        setTimeout(() => routerRef.current.replace('/(tabs)/agents'), 1000);
       } else {
         throw new Error(finalizeJson.error || 'Finalization failed');
       }
@@ -249,9 +251,23 @@ export default function NewAgentScreen() {
       alert(error.message || 'An error occurred during creation.');
       setIsSubmitting(false);
     }
-  };
+  }, [address, name, strategy, funding, avatarColor, fullEnsDomain, registerSubdomain, selectedDuration, marketType, riskLevel, tradingPairs, freeFormPrompt]);
 
-  const handleSubmit = async () => {
+  const handleConfirmEns = React.useCallback(() => {
+    setPaymentVisible(false);
+    handleEnsPayAndCreateAgent();
+  }, [handleEnsPayAndCreateAgent]);
+
+  const handleSkipEns = React.useCallback(() => {
+    setPaymentVisible(false);
+    handleSubmit();
+  }, [handleSubmit]);
+
+  const handleCloseEns = React.useCallback(() => {
+    setPaymentVisible(false);
+  }, []);
+
+  const handleSubmit = React.useCallback(async () => {
     console.log('[NewAgent] handleSubmit (Single Step) started');
     if (!address || !name || !strategy || !funding) {
       console.warn('[NewAgent] Missing required fields for creation:', { address, name, strategy, funding });
@@ -293,7 +309,7 @@ export default function NewAgentScreen() {
       if (json.success) {
         setLoadingText('Agent Live!');
         console.log('[NewAgent] Agent Creation Complete. Navigating to agents list.');
-        setTimeout(() => router.replace('/(tabs)/agents'), 1000);
+        setTimeout(() => routerRef.current.replace('/(tabs)/agents'), 1000);
       } else {
         console.error('[NewAgent] Creation failed:', json.error);
         alert('Creation failed: ' + json.error);
@@ -304,7 +320,7 @@ export default function NewAgentScreen() {
       alert('A network error occurred.');
       setIsSubmitting(false);
     }
-  };
+  }, [address, name, strategy, funding, marketType, avatarColor, agentEnsSub, riskLevel, maxPositionPct, tradingPairs, freeFormPrompt]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -322,7 +338,7 @@ export default function NewAgentScreen() {
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={styles.progressLine}>
-          <Animated.View style={[styles.progressFill, { width: `${(step / 4) * 100}%`, backgroundColor: theme.primary }]} />
+          <View style={[styles.progressFill, { width: `${(step / 4) * 100}%`, backgroundColor: theme.primary }]} />
         </View>
         <View style={styles.stepDots}>
           {[1, 2, 3, 4].map(i => (
@@ -631,20 +647,14 @@ export default function NewAgentScreen() {
         durationYears={selectedDuration}
         priceEth="0"
         ethUsdPrice={2400} // Mock price
-        onConfirm={() => {
-          setPaymentVisible(false);
-          handleEnsPayAndCreateAgent();
-        }}
-        onSkip={() => {
-          setPaymentVisible(false);
-          handleSubmit();
-        }}
-        onClose={() => setPaymentVisible(false)}
+        onConfirm={handleConfirmEns}
+        onSkip={handleSkipEns}
+        onClose={handleCloseEns}
       />
 
       {/* Loading Overlay */}
       {isSubmitting && (
-        <Animated.View style={styles.loadingOverlay}>
+        <View style={styles.loadingOverlay}>
           <View style={styles.loadingContent}>
             <Text style={styles.loadingTitle}>SYSTEM PROVISIONING</Text>
             <View style={styles.terminalLine}>
@@ -653,7 +663,7 @@ export default function NewAgentScreen() {
             </View>
             <ActivityIndicator color={theme.primary} style={{ marginTop: 40 }} />
           </View>
-        </Animated.View>
+        </View>
       )}
     </SafeAreaView>
   );

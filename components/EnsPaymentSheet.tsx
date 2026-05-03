@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,10 +36,19 @@ export function EnsPaymentSheet({
   onSkip,
   onClose
 }: EnsPaymentSheetProps) {
+  const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['55%'], []);
 
   const priceUsd = parseFloat(priceEth) * ethUsdPrice;
   const isGasOnly = priceEth === '0';
+
+  useEffect(() => {
+    if (isVisible) {
+      bottomSheetRef.current?.expand();
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [isVisible]);
 
   const onConfirmLogged = () => {
     console.log('[EnsPaymentSheet] User clicked Confirm & Register for domain:', fullDomain);
@@ -51,24 +60,26 @@ export function EnsPaymentSheet({
     onSkip();
   };
 
-  const onCloseLogged = () => {
-    console.log('[EnsPaymentSheet] User closed sheet');
+  const handleClose = () => {
+    console.log('[EnsPaymentSheet] handleClose triggered');
     onClose();
   };
 
-  if (!isVisible) return null;
-
-  console.log('[EnsPaymentSheet] Displaying sheet for domain:', fullDomain);
-
   return (
     <BottomSheet
-      index={0}
+      ref={bottomSheetRef}
+      index={-1}
       snapPoints={snapPoints}
-      onClose={onCloseLogged}
+      onClose={handleClose}
       enablePanDownToClose
       backgroundStyle={styles.sheetBg}
       backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
+        <BottomSheetBackdrop 
+          {...props} 
+          disappearsOnIndex={-1} 
+          appearsOnIndex={0} 
+          opacity={0.5}
+        />
       )}
     >
       <BottomSheetView style={styles.sheetContent}>
@@ -78,7 +89,7 @@ export function EnsPaymentSheet({
             <Text style={styles.sheetTitle}>Register ENS Subdomain</Text>
             <Text style={styles.sheetDomain}>{fullDomain}</Text>
           </View>
-          <TouchableOpacity onPress={onCloseLogged} style={styles.closeIcon}>
+          <TouchableOpacity onPress={() => bottomSheetRef.current?.close()} style={styles.closeIcon}>
             <Ionicons name="close" size={24} color="rgba(255,255,255,0.3)" />
           </TouchableOpacity>
         </View>
@@ -142,4 +153,5 @@ const styles = StyleSheet.create({
   skipBtn: { alignItems: 'center', paddingVertical: 12 },
   skipBtnText: { fontFamily: 'Inter-Regular', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
 });
+
 
