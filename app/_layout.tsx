@@ -90,13 +90,15 @@ const appkit = createAppKit({
   enableAnalytics: true,
 });
 
-import { registerForPushNotificationsAsync } from '@/hooks/useNotifications';
+import { registerForPushNotificationsAsync, useNotificationNavigation } from '@/hooks/useNotifications';
 
 function RootContent() {
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
   const { isConnected, status, address } = useAccount();
+
+  useNotificationNavigation(router);
 
   useEffect(() => {
     if (isConnected && address) {

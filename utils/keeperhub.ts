@@ -43,6 +43,8 @@ export const keeperHub = {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   }),
+  getExecutionStatus: (id: string) => keeperHubFetch(`/executions/${id}`),
+  getExecutionLogs: (id: string) => keeperHubFetch(`/executions/${id}/logs`),
   listActionSchemas: (category?: string) => keeperHubFetch(`/workflows/action-schemas${category ? `?category=${category}` : ''}`),
   listIntegrations: (type?: string) => keeperHubFetch(`/integrations${type ? `?type=${type}` : ''}`),
   getWalletIntegration: (id: string) => keeperHubFetch(`/integrations/web3/${id}`),

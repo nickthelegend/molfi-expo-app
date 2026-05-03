@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -11,6 +12,22 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+
+// Deep Linking Handler
+export function useNotificationNavigation(router: any) {
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data?.executionId) {
+        router.push(`/executions/${data.executionId}`);
+      } else if (data?.workflowId) {
+        router.push('/(tabs)/workflows');
+      }
+    });
+
+    return () => subscription.remove();
+  }, [router]);
+}
 
 export async function registerForPushNotificationsAsync(walletAddress: string) {
   let token;
