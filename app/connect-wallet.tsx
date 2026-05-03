@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    maxWidth: 320,
   },
   secondaryLink: {
     marginTop: 24,

@@ -268,7 +268,7 @@ export const Button = forwardRef<View, ButtonProps>(
             />
           ) : typeof children === 'string' ? (
             <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               {icon && (
                 <Ionicons name={icon} color={contentColor} size={iconSize} />
@@ -303,7 +303,7 @@ export const Button = forwardRef<View, ButtonProps>(
             color={contentColor}
           />
         ) : typeof children === 'string' ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {icon && <Icon name={icon} color={contentColor} size={iconSize} />}
             <Text style={[finalTextStyle, textStyle]}>{children}</Text>
           </View>
