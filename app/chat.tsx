@@ -10,7 +10,8 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,7 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(paramSessionId || null);
   const [inputText, setInputText] = useState('');
+  const [isNetworkModalVisible, setIsNetworkModalVisible] = useState(false);
 
   const isInitialState = messages.length === 0 && !isLoading;
 
@@ -236,45 +238,28 @@ export default function ChatScreen() {
           </View>
           
           <View style={styles.headerIcons}>
+            <TouchableOpacity 
+              onPress={() => setIsNetworkModalVisible(true)} 
+              style={[styles.headerIconButton, { backgroundColor: theme.primary + '20', width: 'auto', paddingHorizontal: 10, gap: 6, flexDirection: 'row' }]}
+            >
+              <View style={[styles.statusDot, { backgroundColor: theme.primary }]} />
+              <Text style={[styles.networkText, { color: theme.primary }]}>
+                {preferences.defaultChain === 16661 ? '0G' : 
+                 preferences.defaultChain === 1 ? 'ETH' : 
+                 preferences.defaultChain === 8453 ? 'Base' : 
+                 preferences.defaultChain === 42161 ? 'Arb' : 
+                 preferences.defaultChain === 137 ? 'Poly' : 'BNB'}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={theme.primary} />
+            </TouchableOpacity>
+            
             <TouchableOpacity onPress={startNewChat} style={[styles.headerIconButton, { backgroundColor: theme.card }]}>
               <Ionicons name="create-outline" size={22} color={theme.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/chat-history')} style={[styles.headerIconButton, { backgroundColor: theme.card }]}>
-              <Ionicons name="time-outline" size={22} color={theme.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Chain Selector */}
-        <View style={styles.chainSelectorContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chainScroll}>
-            {[
-              { id: 16661, name: '0G', logo: 'https://raw.githubusercontent.com/0glabs/0g-chain-registry/main/mainnets/0g/images/0g.png' },
-              { id: 1, name: 'ETH', logo: 'https://icons.llama.fi/chains/rsz_ethereum.jpg' },
-              { id: 8453, name: 'Base', logo: 'https://icons.llama.fi/chains/rsz_base.jpg' },
-              { id: 42161, name: 'Arb', logo: 'https://icons.llama.fi/chains/rsz_arbitrum.jpg' },
-              { id: 137, name: 'Poly', logo: 'https://icons.llama.fi/chains/rsz_polygon.jpg' },
-              { id: 56, name: 'BNB', logo: 'https://icons.llama.fi/chains/rsz_bsc.jpg' },
-              { id: 10, name: 'Op', logo: 'https://icons.llama.fi/chains/rsz_optimism.jpg' },
-              { id: 43114, name: 'Avax', logo: 'https://icons.llama.fi/chains/rsz_avalanche.jpg' },
-            ].map((chain) => {
-              const isSelected = preferences.defaultChain === chain.id;
-              return (
-                <TouchableOpacity 
-                  key={chain.id}
-                  style={[
-                    styles.chainChip, 
-                    { backgroundColor: isSelected ? theme.primary : theme.card, borderColor: isSelected ? theme.primary : theme.border }
-                  ]}
-                  onPress={() => updatePreferences({ defaultChain: chain.id })}
-                >
-                  <Image source={{ uri: chain.logo }} style={styles.chainLogo} />
-                  <Text style={[styles.chainName, { color: isSelected ? '#000' : theme.text }]}>{chain.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+
 
         <View style={{ flex: 1 }}>
           {isInitialState ? (
@@ -395,8 +380,53 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {/* Network Selection Modal */}
+        <NetworkSelectorModal 
+          visible={isNetworkModalVisible}
+          onClose={() => setIsNetworkModalVisible(false)}
+          selectedChainId={preferences.defaultChain}
+          onSelect={(id) => {
+            updatePreferences({ defaultChain: id });
+            setIsNetworkModalVisible(false);
+          }}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+
+
+function NetworkSelectorModal({ visible, onClose, selectedChainId, onSelect }: any) {
+  const colorScheme = useColorScheme() ?? 'dark';
+  const theme = Colors[colorScheme];
+  const networks = [
+    { id: 1, name: 'Ethereum', symbol: 'ETH', logo: 'https://icons.llama.fi/chains/rsz_ethereum.jpg' },
+    { id: 8453, name: 'Base', symbol: 'Base', logo: 'https://icons.llama.fi/chains/rsz_base.jpg' },
+    { id: 42161, name: 'Arbitrum', symbol: 'Arb', logo: 'https://icons.llama.fi/chains/rsz_arbitrum.jpg' },
+    { id: 137, name: 'Polygon', symbol: 'Poly', logo: 'https://icons.llama.fi/chains/rsz_polygon.jpg' },
+    { id: 16661, name: '0G Network', symbol: '0G', logo: 'https://raw.githubusercontent.com/0glabs/0g-chain-registry/main/mainnets/0g/images/0g.png' },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Select Network</Text>
+          {networks.map((net) => (
+            <TouchableOpacity 
+              key={net.id} 
+              style={[styles.networkItem, selectedChainId === net.id && { backgroundColor: theme.primary + '10' }]}
+              onPress={() => onSelect(net.id)}
+            >
+              <Image source={{ uri: net.logo }} style={styles.chainLogoSmall} />
+              <Text style={[styles.networkItemText, { color: selectedChainId === net.id ? theme.primary : theme.text }]}>{net.name}</Text>
+              {selectedChainId === net.id && <Ionicons name="checkmark" size={16} color={theme.primary} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 }
 
@@ -459,14 +489,26 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
+    alignItems: 'center',
   },
   headerIconButton: {
-    width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  networkText: {
+    fontFamily: 'Manrope-ExtraBold',
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -629,6 +671,42 @@ const styles = StyleSheet.create({
   shortcutText: {
     fontFamily: 'Manrope-Bold',
     fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: width * 0.8,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontFamily: 'Manrope-ExtraBold',
+    fontSize: 18,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  networkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 16,
+    marginBottom: 8,
+    gap: 12,
+  },
+  chainLogoSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  networkItemText: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+    flex: 1,
   },
 });
 

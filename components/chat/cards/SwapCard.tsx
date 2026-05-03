@@ -67,6 +67,8 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
 
   const [fromChain, setFromChain] = useState<number>(1);
   const [toChain, setToChain] = useState<number>(1);
+  const [isFromModalVisible, setIsFromModalVisible] = useState(false);
+  const [isToModalVisible, setIsToModalVisible] = useState(false);
 
   const {
     getQuote, executeSwap, step: swapStep, quote: swapQuote,
@@ -78,7 +80,7 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
     sourceTxHash: bridgeTxHash, error: bridgeError, reset: resetBridge
   } = useBridge();
 
-  const swapStepData = payload.plan.steps.find(s => s.action === 'swap');
+  const swapStepData = payload?.plan?.steps?.find((s: any) => s.action === 'swap');
   const swapParams = swapStepData?.params;
 
   useEffect(() => {
@@ -201,32 +203,22 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>SOURCE</Text>
           <TouchableOpacity 
-            onPress={() => {
-              const ids = [1, 137, 8453, 42161];
-              const currentIndex = ids.indexOf(fromChain);
-              const nextIndex = (currentIndex + 1) % ids.length;
-              setFromChain(ids[nextIndex]);
-            }}
+            onPress={() => setIsFromModalVisible(true)}
             style={[styles.dropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Text style={[styles.dropdownText, { color: theme.text }]}>{CHAIN_NAMES[fromChain]}</Text>
-            <Ionicons name="swap-horizontal" size={12} color={theme.primary} />
+            <Ionicons name="chevron-down" size={12} color={theme.primary} />
           </TouchableOpacity>
         </View>
 
         <View style={{ flex: 1, marginLeft: 8 }}>
           <Text style={[styles.dropdownLabel, { color: theme.textMuted }]}>DESTINATION</Text>
           <TouchableOpacity 
-            onPress={() => {
-              const ids = [1, 137, 8453, 42161];
-              const currentIndex = ids.indexOf(toChain);
-              const nextIndex = (currentIndex + 1) % ids.length;
-              setToChain(ids[nextIndex]);
-            }}
+            onPress={() => setIsToModalVisible(true)}
             style={[styles.dropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <Text style={[styles.dropdownText, { color: theme.text }]}>{CHAIN_NAMES[toChain]}</Text>
-            <Ionicons name="swap-horizontal" size={12} color={theme.primary} />
+            <Ionicons name="chevron-down" size={12} color={theme.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -262,7 +254,9 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           <Ionicons name="sparkles" size={10} color={theme.primary} />
           <Text style={[styles.aiTitle, { color: theme.textMuted }]}>AI LOGIC</Text>
         </View>
-        <Text style={[styles.aiText, { color: theme.text }]}>{payload.reasoning}</Text>
+        <Text style={[styles.aiText, { color: theme.text }]}>
+          {payload.reasoning || `Executing swap for ${swapParams?.amount} ${swapParams?.symbolIn} on ${CHAIN_NAMES[fromChain]} via Molfi liquidity routing.`}
+        </Text>
       </View>
 
       {/* Error Banner */}
@@ -295,9 +289,62 @@ export const SwapCard: React.FC<SwapCardProps> = ({ payload }) => {
           )}
         </TouchableOpacity>
       )}
+      {/* Network Selection Modals */}
+      <NetworkSelectorModal 
+        visible={isFromModalVisible}
+        onClose={() => setIsFromModalVisible(false)}
+        selectedChainId={fromChain}
+        onSelect={(id: number) => {
+          setFromChain(id);
+          setIsFromModalVisible(false);
+        }}
+      />
+      <NetworkSelectorModal 
+        visible={isToModalVisible}
+        onClose={() => setIsToModalVisible(false)}
+        selectedChainId={toChain}
+        onSelect={(id: number) => {
+          setToChain(id);
+          setIsToModalVisible(false);
+        }}
+      />
     </Animated.View>
   );
 };
+
+import { Modal, Image } from 'react-native';
+
+function NetworkSelectorModal({ visible, onClose, selectedChainId, onSelect }: any) {
+  const colorScheme = useColorScheme() ?? 'dark';
+  const theme = Colors[colorScheme];
+  const networks = [
+    { id: 1, name: 'Ethereum', logo: 'https://icons.llama.fi/chains/rsz_ethereum.jpg' },
+    { id: 8453, name: 'Base', logo: 'https://icons.llama.fi/chains/rsz_base.jpg' },
+    { id: 42161, name: 'Arbitrum', logo: 'https://icons.llama.fi/chains/rsz_arbitrum.jpg' },
+    { id: 137, name: 'Polygon', logo: 'https://icons.llama.fi/chains/rsz_polygon.jpg' },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
+        <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Select Network</Text>
+          {networks.map((net) => (
+            <TouchableOpacity 
+              key={net.id} 
+              style={[styles.networkItem, selectedChainId === net.id && { backgroundColor: theme.primary + '10' }]}
+              onPress={() => onSelect(net.id)}
+            >
+              <Image source={{ uri: net.logo }} style={styles.chainLogoSmall} />
+              <Text style={[styles.networkItemText, { color: selectedChainId === net.id ? theme.primary : theme.text }]}>{net.name}</Text>
+              {selectedChainId === net.id && <Ionicons name="checkmark" size={16} color={theme.primary} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
 
 const styles = StyleSheet.create({
   card: { borderRadius: 24, padding: 20, width: width * 0.9, borderWidth: 1, overflow: 'hidden', alignSelf: 'center' },
@@ -325,6 +372,42 @@ const styles = StyleSheet.create({
   buttonLoading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   disabledButton: { opacity: 0.5 },
   successBox: { height: 56, borderRadius: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  successText: { fontFamily: 'Manrope-ExtraBold', fontSize: 14 }
+  successText: { fontFamily: 'Manrope-ExtraBold', fontSize: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: width * 0.8,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontFamily: 'Manrope-ExtraBold',
+    fontSize: 18,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  networkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 16,
+    marginBottom: 8,
+    gap: 12,
+  },
+  chainLogoSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  networkItemText: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 14,
+    flex: 1,
+  },
 });
 
