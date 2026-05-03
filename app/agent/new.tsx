@@ -270,7 +270,7 @@ export default function NewAgentScreen() {
         strategy,
         market: marketType,
         avatarColor,
-        createEns: false,
+        createEns: !!agentEnsSub,
         config: {
           initialFunding: parseFloat(funding),
           riskLevel,
