@@ -1,8 +1,16 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Pressable } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming,
+  interpolate,
+  Extrapolate
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface EnsPaymentSheetProps {
   isVisible: boolean;
@@ -36,65 +44,54 @@ export function EnsPaymentSheet({
   onSkip,
   onClose
 }: EnsPaymentSheetProps) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['55%'], []);
+  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const backdropOpacity = useSharedValue(0);
 
   const priceUsd = parseFloat(priceEth) * ethUsdPrice;
   const isGasOnly = priceEth === '0';
 
   useEffect(() => {
     if (isVisible) {
-      bottomSheetRef.current?.expand();
+      translateY.value = withSpring(SCREEN_HEIGHT * 0.45, { damping: 15, stiffness: 100 });
+      backdropOpacity.value = withTiming(1, { duration: 300 });
     } else {
-      bottomSheetRef.current?.close();
+      translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 });
+      backdropOpacity.value = withTiming(0, { duration: 300 });
     }
   }, [isVisible]);
 
-  const onConfirmLogged = () => {
-    console.log('[EnsPaymentSheet] User clicked Confirm & Register for domain:', fullDomain);
-    onConfirm();
-  };
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
-  const onSkipLogged = () => {
-    console.log('[EnsPaymentSheet] User clicked Skip for domain:', fullDomain);
-    onSkip();
-  };
+  const animatedBackdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+    pointerEvents: isVisible ? 'auto' : 'none',
+  }));
 
-  const handleClose = () => {
-    console.log('[EnsPaymentSheet] handleClose triggered');
-    onClose();
-  };
+  if (!isVisible && translateY.value === SCREEN_HEIGHT) return null;
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={-1}
-      snapPoints={snapPoints}
-      onClose={handleClose}
-      enablePanDownToClose
-      backgroundStyle={styles.sheetBg}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop 
-          {...props} 
-          disappearsOnIndex={-1} 
-          appearsOnIndex={0} 
-          opacity={0.5}
-        />
-      )}
-    >
-      <BottomSheetView style={styles.sheetContent}>
-        {/* Header */}
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* Backdrop */}
+      <Animated.View style={[styles.backdrop, animatedBackdropStyle]}>
+        <Pressable style={flex1} onPress={onClose} />
+      </Animated.View>
+
+      {/* Sheet */}
+      <Animated.View style={[styles.sheet, animatedSheetStyle]}>
+        <View style={styles.handle} />
+        
         <View style={styles.header}>
           <View>
             <Text style={styles.sheetTitle}>Register ENS Subdomain</Text>
             <Text style={styles.sheetDomain}>{fullDomain}</Text>
           </View>
-          <TouchableOpacity onPress={() => bottomSheetRef.current?.close()} style={styles.closeIcon}>
+          <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
             <Ionicons name="close" size={24} color="rgba(255,255,255,0.3)" />
           </TouchableOpacity>
         </View>
 
-        {/* Price breakdown */}
         <View style={styles.priceCard}>
           <Row label="Registration" value={isGasOnly ? 'FREE' : `${priceEth} ETH`} isGreen={isGasOnly} />
           {!isGasOnly && <Row label="≈ USD" value={`$${priceUsd.toFixed(2)}`} />}
@@ -102,7 +99,6 @@ export function EnsPaymentSheet({
           <Row label="Gas" value="Estimated on send" />
         </View>
 
-        {/* What this does */}
         <View style={styles.infoBlock}>
           <Text style={styles.infoText}>
             This subdomain will be owned by your agent's wallet:
@@ -112,24 +108,51 @@ export function EnsPaymentSheet({
           </Text>
         </View>
 
-        {/* CTAs */}
-        <TouchableOpacity style={styles.confirmBtn} onPress={onConfirmLogged}>
+        <TouchableOpacity style={styles.confirmBtn} onPress={onConfirm}>
           <Text style={styles.confirmBtnText}>
             {isGasOnly ? 'Register (Gas Only)' : `Pay ${priceEth} ETH & Register`}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipBtn} onPress={onSkipLogged}>
+        <TouchableOpacity style={styles.skipBtn} onPress={onSkip}>
           <Text style={styles.skipBtnText}>Skip — Create Agent Without ENS</Text>
         </TouchableOpacity>
-      </BottomSheetView>
-    </BottomSheet>
+      </Animated.View>
+    </View>
   );
 }
 
+const flex1 = { flex: 1 };
+
 const styles = StyleSheet.create({
-  sheetBg: { backgroundColor: '#0D0D0D' },
-  sheetContent: { padding: 24, flex: 1 },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SCREEN_HEIGHT * 0.6,
+    backgroundColor: '#0D0D0D',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 24,
+  },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   closeIcon: { padding: 4 },
   sheetTitle: { fontFamily: 'Manrope-Bold', fontSize: 18, color: '#FFFFFF', marginBottom: 4 },
@@ -153,5 +176,6 @@ const styles = StyleSheet.create({
   skipBtn: { alignItems: 'center', paddingVertical: 12 },
   skipBtnText: { fontFamily: 'Inter-Regular', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
 });
+
 
 
