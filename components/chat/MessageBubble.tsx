@@ -34,10 +34,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ role, content, int
         </View>
       ) : null}
 
-      {intent && intent.type !== 'NONE' && (
+      {intent && (
         <Animated.View entering={FadeInDown.duration(300)} style={styles.cardWrapper}>
-          {intent.type === 'SWAP' && <SwapCard payload={intent} />}
-          {intent.type === 'SEND' && <SendCard payload={intent} />}
+          {(intent.type === 'SWAP' || intent === 'swap') && <SwapCard payload={intent} />}
+          {(intent.type === 'SEND' || intent === 'send') && <SendCard payload={intent} />}
+          {(intent === 'keeperhub') && <KeeperHubCard payload={intent} />}
+          {(intent === 'polymarket_fetch') && <PolymarketCard payload={intent} />}
           {intent.type === 'CREATE_AGENT' && <CreateAgentCard payload={intent} />}
         </Animated.View>
       )}

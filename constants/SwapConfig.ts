@@ -14,11 +14,11 @@ export const ogChain = defineChain({
   },
 });
 
-// Official Uniswap V3 Contracts (Ethereum, Polygon, Arbitrum, Base, Optimism)
+// Official Uniswap V3 Contracts (Base)
 export const UNISWAP_V3_CONTRACTS = {
-  SWAP_ROUTER: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as `0x${string}`,
-  QUOTER_V2:   '0x61fFE014bA17989E743c5F6cB21bF9697530B21e' as `0x${string}`,
-  FACTORY:     '0x1F98431c8aD98523631AE4a59f267346ea31F984' as `0x${string}`,
+  SWAP_ROUTER: '0x2626664c2602331C56965E969AFE6d3F2169a3F1' as `0x${string}`,
+  QUOTER_V2:   '0x3d4e44Eb1374240CE5F1B871ab271cdC1368ec03' as `0x${string}`,
+  FACTORY:     '0x33128a8fC170d030b747a2111b12078C21E3cfaf' as `0x${string}`,
 } as const;
 
 export const POLYGON_CONTRACTS = {

@@ -8,7 +8,8 @@ import {
   SafeAreaView, 
   Dimensions,
   RefreshControl,
-  Share
+  Share,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -304,9 +305,39 @@ export default function PortfolioScreen() {
           )}
           
           {activeTab === 'Agents' && (
-            <View style={styles.emptyCard}>
-              <Ionicons name="apps-outline" size={32} color="rgba(255,255,255,0.2)" />
-              <Text style={styles.emptyText}>Navigate to Agents tab for full management</Text>
+            <View>
+              <Text style={styles.sectionTitle}>Agent Operations</Text>
+              <View style={styles.emptyCard}>
+                <Ionicons name="apps-outline" size={32} color="rgba(255,255,255,0.2)" />
+                <Text style={styles.emptyText}>Agent management is active.</Text>
+              </View>
+
+              <Text style={[styles.sectionTitle, { marginTop: 32 }]}>AI Research Reports</Text>
+              {portfolioData?.researchReports?.length > 0 ? (
+                <View style={styles.reportList}>
+                  {portfolioData.researchReports.map((report: any, idx: number) => (
+                    <TouchableOpacity 
+                      key={idx} 
+                      style={styles.reportItem}
+                      onPress={() => Linking.openURL(report.url)}
+                    >
+                      <View style={styles.reportIcon}>
+                        <Ionicons name="document-text" size={20} color={theme.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reportTitle} numberOfLines={1}>{report.title}</Text>
+                        <Text style={styles.reportDate}>{new Date(report.date).toLocaleDateString()}</Text>
+                      </View>
+                      <Ionicons name="open-outline" size={16} color="rgba(255,255,255,0.3)" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyCard}>
+                  <Ionicons name="search-outline" size={32} color="rgba(255,255,255,0.2)" />
+                  <Text style={styles.emptyText}>No research reports generated yet.</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -388,7 +419,12 @@ const styles = StyleSheet.create({
   closeBtn: { width: '100%', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
   closeBtnText: { fontFamily: 'Manrope-Bold', fontSize: 16, color: '#fff' },
   retryBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
-  retryText: { fontFamily: 'Manrope-SemiBold', fontSize: 13, color: '#fff' }
+  retryText: { fontFamily: 'Manrope-SemiBold', fontSize: 13, color: '#fff' },
+  reportList: { gap: 12 },
+  reportItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', padding: 16, borderRadius: 20, gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  reportIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(173,70,255,0.1)', justifyContent: 'center', alignItems: 'center' },
+  reportTitle: { fontFamily: 'Manrope-Bold', fontSize: 14, color: '#fff' },
+  reportDate: { fontFamily: 'Inter-Regular', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }
 });
 
 

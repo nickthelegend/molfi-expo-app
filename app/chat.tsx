@@ -153,27 +153,23 @@ export default function ChatScreen() {
         }
       }
 
-      const groqMessages: GroqMessage[] = messages
-        .slice()
-        .reverse()
-        .map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content
-        }));
-      groqMessages.push({ role: 'user', content: messageToSend });
+      const response = await fetch(`${API_URL}/chat/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageToSend, walletAddress: address })
+      });
+      const json = await response.json();
+      
+      if (!json.success) throw new Error(json.error);
 
-      const systemPrompt = getSystemPrompt(address || '0x...', preferences);
-      const rawResponse = await callGroq(groqMessages, systemPrompt);
-      console.log('[Chat] Raw AI Response:', rawResponse);
-      const { text: cleanText, intent } = parseIntent(rawResponse);
-      console.log('[Chat] Parsed Intent:', JSON.stringify(intent, null, 2));
+      const aiData = json.data;
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: cleanText,
-        intent: intent,
-        intentPayload: intent?.payload || null,
+        content: aiData.content,
+        intent: aiData.intent,
+        intentPayload: aiData.intentPayload,
         timestamp: new Date(),
         status: 'sent'
       };

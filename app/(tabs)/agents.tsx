@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAgentSocket } from '@/hooks/useAgentSocket';
 
 const { width } = Dimensions.get('window');
 
@@ -57,6 +58,7 @@ export default function AgentsScreen() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { activities, isConnected } = useAgentSocket(address);
 
   const fetchAgents = useCallback(async () => {
     if (!address) return;
@@ -226,7 +228,10 @@ export default function AgentsScreen() {
       <View style={styles.screenHeader}>
         <View>
           <Text style={styles.title}>Agents</Text>
-          <Text style={styles.subtitle}>{agents.filter(a => a.status === 'active').length} active agents</Text>
+          <View style={styles.statusRow}>
+            <View style={[styles.socketDot, { backgroundColor: isConnected ? '#00FF94' : '#FF3B30' }]} />
+            <Text style={styles.subtitle}>{isConnected ? 'Agent Swarm Online' : 'Connecting to Swarm...'}</Text>
+          </View>
         </View>
         <TouchableOpacity 
           style={[styles.createBtn, { backgroundColor: theme.primary }]}
@@ -237,38 +242,73 @@ export default function AgentsScreen() {
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <View style={styles.listContainer}>
-          {[1, 2, 3].map(i => (
-            <View key={i} style={styles.skeletonCard}>
-              <Skeleton height={200} borderRadius={24} />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <FlatList
-          data={agents}
-          renderItem={renderAgentCard}
-          keyExtractor={item => item._id}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAgents} tintColor={theme.primary} />}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="sparkles-outline" size={48} color="rgba(255,255,255,0.1)" />
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={fetchAgents} tintColor={theme.primary} />}
+      >
+        {/* Activity Feed */}
+        {activities.length > 0 && (
+          <View style={styles.activitySection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Live Activity Feed</Text>
+              <View style={styles.liveBadge}>
+                <Text style={styles.liveBadgeText}>LIVE</Text>
               </View>
-              <Text style={styles.emptyTitle}>No Agents Yet</Text>
-              <Text style={styles.emptySubtitle}>Create your first AI trading agent to start automating your strategy.</Text>
-              <TouchableOpacity 
-                style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
-                onPress={() => router.push('/agent/new')}
-              >
-                <Text style={styles.emptyBtnText}>Create Agent</Text>
-              </TouchableOpacity>
             </View>
-          }
-        />
-      )}
+            <View style={styles.activityList}>
+              {activities.slice(0, 3).map((act, idx) => (
+                <View key={idx} style={styles.activityItem}>
+                  <View style={[styles.activityIcon, { backgroundColor: act.type.includes('TRADE') ? 'rgba(0,255,148,0.1)' : 'rgba(173,70,255,0.1)' }]}>
+                    <Ionicons 
+                      name={act.type.includes('TRADE') ? 'swap-horizontal' : 'search'} 
+                      size={14} 
+                      color={act.type.includes('TRADE') ? '#00FF94' : theme.primary} 
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.activityMsg}>{act.message}</Text>
+                    <Text style={styles.activityTime}>{formatDistanceToNow(new Date(act.timestamp))} ago</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>Your Agents</Text>
+        {isLoading ? (
+          <View>
+            {[1, 2].map(i => (
+              <View key={i} style={styles.skeletonCard}>
+                <Skeleton height={200} borderRadius={24} />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View>
+            {agents.map(agent => (
+              <View key={agent._id}>
+                {renderAgentCard({ item: agent })}
+              </View>
+            ))}
+            {agents.length === 0 && (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="sparkles-outline" size={48} color="rgba(255,255,255,0.1)" />
+                </View>
+                <Text style={styles.emptyTitle}>No Agents Yet</Text>
+                <Text style={styles.emptySubtitle}>Create your first AI trading agent to start automating your strategy.</Text>
+                <TouchableOpacity 
+                  style={[styles.emptyBtn, { backgroundColor: theme.primary }]}
+                  onPress={() => router.push('/agent/new')}
+                >
+                  <Text style={styles.emptyBtnText}>Create Agent</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -347,6 +387,18 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 20, color: '#fff', marginBottom: 12 },
   emptySubtitle: { fontFamily: 'Inter-Regular', fontSize: 15, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
   emptyBtn: { paddingHorizontal: 32, paddingVertical: 16, borderRadius: 28 },
-  emptyBtnText: { fontFamily: 'Manrope-Bold', fontSize: 16, color: '#fff' }
+  emptyBtnText: { fontFamily: 'Manrope-Bold', fontSize: 16, color: '#fff' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  socketDot: { width: 6, height: 6, borderRadius: 3 },
+  activitySection: { marginBottom: 32 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 18, color: '#fff', marginBottom: 16 },
+  liveBadge: { backgroundColor: '#FF3B30', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  liveBadgeText: { fontFamily: 'Manrope-Bold', fontSize: 8, color: '#fff' },
+  activityList: { gap: 12, backgroundColor: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)' },
+  activityItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  activityIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  activityMsg: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#fff' },
+  activityTime: { fontFamily: 'Inter-Regular', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }
 });
 
