@@ -21,6 +21,22 @@ import {
   SWAP_ROUTER_ABI,
 } from '@/constants/SwapConfig';
 
+const WRAPPED_TOKENS: Record<number, `0x${string}`> = {
+  1: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+  137: '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270', // WMATIC
+  8453: '0x4200000000000000000000000000000000000006', // WETH
+  42161: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', // WETH
+};
+
+function wrapAddress(chainId: number, address: string): `0x${string}` {
+  const addr = address.toLowerCase();
+  if (addr === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' || addr === '0x0000000000000000000000000000000000000000') {
+    return WRAPPED_TOKENS[chainId] || (address as `0x${string}`);
+  }
+  return address as `0x${string}`;
+}
+
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export type SwapStep =
@@ -199,13 +215,15 @@ export function useSwap(): UseSwapReturn {
       }
 
       const amountIn = parseUnits(params.amountIn, decimalsIn);
+      const tokenIn = wrapAddress(params.chainId, params.tokenIn);
+      const tokenOut = wrapAddress(params.chainId, params.tokenOut);
 
       console.log(`[useSwap] Fetching quote for ${params.amountIn} ${params.tokenIn} on chain ${params.chainId}...`);
       const best = await getBestQuote(
         publicClient,
         contracts,
-        params.tokenIn,
-        params.tokenOut,
+        tokenIn,
+        tokenOut,
         amountIn,
       );
 
@@ -310,11 +328,14 @@ export function useSwap(): UseSwapReturn {
 
       // ── A. Get fresh quote ─────────────────────────────────────────────
       setStep('quoting');
+      const tokenIn = wrapAddress(params.chainId, params.tokenIn);
+      const tokenOut = wrapAddress(params.chainId, params.tokenOut);
+      
       const best = await getBestQuote(
         publicClient,
         contracts,
-        params.tokenIn,
-        params.tokenOut,
+        tokenIn,
+        tokenOut,
         amountIn,
       );
       if (!best) throw new Error('No route found. The pool may have insufficient liquidity.');

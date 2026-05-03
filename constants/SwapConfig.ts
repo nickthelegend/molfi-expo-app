@@ -16,9 +16,9 @@ export const ogChain = defineChain({
 
 // Official Uniswap V3 Contracts (Base)
 export const UNISWAP_V3_CONTRACTS = {
-  SWAP_ROUTER: '0x2626664c2602331c56965e969afe6d3f2169a3f1' as `0x${string}`,
-  QUOTER_V2:   '0x3d4e44eb1374240ce5f1b871ab271cdc1368ec03' as `0x${string}`,
-  FACTORY:     '0x33128a8fc170d030b747a2111b12078c21e3cfaf' as `0x${string}`,
+  SWAP_ROUTER: '0x2626664c2603336E57B271c5C0b26F421741e481' as `0x${string}`,
+  QUOTER_V2:   '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a' as `0x${string}`,
+  FACTORY:     '0x33128a8fC170d030b747A2111b12078C21e3cfaf' as `0x${string}`,
 } as const;
 
 export const POLYGON_CONTRACTS = {

@@ -20,22 +20,9 @@ import Animated, { FadeInDown, SlideInRight, useSharedValue, useAnimatedStyle, w
 import { useAccount as useAppKitAccount } from '@reown/appkit-react-native';
 import { useBalance, useEnsName } from 'wagmi';
 import { API_URL } from '@/constants/Config';
-import { ModernLineChart } from '@/components/charts/modern-line-chart';
 
-const sampleData = [
-  { x: 'Jan', y: 65000, label: 'January' },
-  { x: 'Feb', y: 80000, label: 'February' },
-  { x: 'Mar', y: 75000, label: 'March' },
-  { x: 'Apr', y: 95000, label: 'April' },
-  { x: 'May', y: 110000, label: 'May' },
-  { x: 'Jun', y: 125000, label: 'June' },
-  { x: 'Jul', y: 140000, label: 'July' },
-  { x: 'Aug', y: 135000, label: 'August' },
-  { x: 'Sep', y: 150000, label: 'September' },
-  { x: 'Oct', y: 165000, label: 'October' },
-  { x: 'Nov', y: 180000, label: 'November' },
-  { x: 'Dec', y: 195000, label: 'December' },
-];
+
+
 
 const { width } = Dimensions.get('window');
 
@@ -72,7 +59,7 @@ export default function HomeScreen() {
   const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   
   const [agents, setAgents] = useState([]);
-  const [chartData, setChartData] = useState(sampleData);
+
   const [notifications, setNotifications] = useState([
     { id: '1', title: 'Agent "Aura" executed a swap', time: '2m ago', type: 'swap' },
     { id: '2', title: 'New trading task started', time: '15m ago', type: 'task' },
@@ -83,7 +70,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (address) {
       fetchAgents();
-      fetchHistory();
+
     }
   }, [address]);
 
@@ -99,21 +86,11 @@ export default function HomeScreen() {
     }
   };
 
-  const fetchHistory = async () => {
-    try {
-      const res = await fetch(`${API_URL}/portfolio/history?walletAddress=${address}`);
-      const data = await res.json();
-      if (data.success) {
-        setChartData(data.data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch history:", e);
-    }
-  };
+
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refetchBalance(), fetchAgents(), fetchHistory()]);
+    await Promise.all([refetchBalance(), fetchAgents()]);
     setIsRefreshing(false);
   };
 
@@ -173,13 +150,7 @@ export default function HomeScreen() {
           <ActionButton icon="grid" label="More" onPress={() => {}} theme={theme} />
         </View>
 
-        {/* Performance Chart */}
-        <View style={styles.chartSection}>
-          <ModernLineChart 
-            data={chartData} 
-            height={280}
-          />
-        </View>
+
 
         {/* Active Agents */}
         <View style={styles.sectionHeader}>
@@ -344,9 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
   },
-  chartSection: {
-    marginBottom: 32,
-  },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
