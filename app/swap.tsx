@@ -43,7 +43,7 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 export default function SwapScreen() {
-  const { tokenId } = useLocalSearchParams();
+  const { tokenAddress, symbol, name, chainId: passedChainId } = useLocalSearchParams();
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const insets = useSafeAreaInsets();
@@ -56,11 +56,34 @@ export default function SwapScreen() {
   const [tokenIn, setTokenIn] = useState(A0GI);
   const [tokenOut, setTokenOut] = useState(USDC);
   const [isQuotingLocal, setIsQuotingLocal] = useState(false);
+  const [currentChainId, setCurrentChainId] = useState(16661); // Default 0G
+
+  useEffect(() => {
+    if (tokenAddress && symbol) {
+      const chainId = passedChainId ? Number(passedChainId) : 8453;
+      setCurrentChainId(chainId);
+
+      setTokenOut({
+        symbol: symbol as string,
+        name: (name as string) || (symbol as string),
+        address: tokenAddress as string,
+        decimals: 18
+      });
+
+      // Set input token to ETH on the relevant chain
+      setTokenIn({
+        symbol: 'ETH',
+        name: 'Ethereum',
+        address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        decimals: 18
+      });
+    }
+  }, [tokenAddress, symbol, name, passedChainId]);
 
   const { data: balanceIn } = useBalance({ 
     address, 
     token: tokenIn.address === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? undefined : tokenIn.address as Address,
-    chainId: 16661 // 0G Mainnet
+    chainId: currentChainId
   });
 
   useEffect(() => {
@@ -73,7 +96,7 @@ export default function SwapScreen() {
     const timer = setTimeout(async () => {
       setIsQuotingLocal(true);
       await getQuote({
-        chainId: 16661, 
+        chainId: currentChainId, 
         tokenIn: tokenIn.address as `0x${string}`,
         tokenOut: tokenOut.address as `0x${string}`,
         tokenInDecimals: tokenIn.decimals,
@@ -84,12 +107,12 @@ export default function SwapScreen() {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [inputAmount, tokenIn, tokenOut, getQuote]);
+  }, [inputAmount, tokenIn, tokenOut, getQuote, currentChainId]);
 
   const handleSwap = async () => {
     if (!quote || step === 'done') return;
     const hash = await executeSwap({
-      chainId: 16661,
+      chainId: currentChainId,
       tokenIn: tokenIn.address as `0x${string}`,
       tokenOut: tokenOut.address as `0x${string}`,
       tokenInDecimals: tokenIn.decimals,
@@ -128,7 +151,7 @@ export default function SwapScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Swap (0G Mainnet)</Text>
+            <Text style={styles.headerTitle}>Swap ({currentChainId === 16661 ? '0G Mainnet' : currentChainId === 8453 ? 'Base' : 'Ethereum'})</Text>
             <TouchableOpacity style={styles.settingsBtn}>
               <Ionicons name="options-outline" size={22} color="#A0A0A0" />
             </TouchableOpacity>

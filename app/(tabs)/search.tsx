@@ -46,12 +46,13 @@ export default function SearchScreen() {
   const router = useRouter();
 
   // State
-  const [activeMarket, setActiveMarket] = useState<'crypto' | 'predictions'>('crypto');
+  const [activeMarket, setActiveMarket] = useState<'crypto' | 'predictions' | 'logs'>('crypto');
   const [searchQuery, setSearchQuery] = useState('');
   const [cryptoCategory, setCryptoCategory] = useState('All');
   const [predictionCategory, setPredictionCategory] = useState('All');
   const [cryptoData, setCryptoData] = useState<any[]>([]);
   const [predictionData, setPredictionData] = useState<any[]>([]);
+  const [logsData, setLogsData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -59,63 +60,55 @@ export default function SearchScreen() {
   const focusAnim = useSharedValue(0);
   const inputRef = useRef<TextInput>(null);
 
-  const fetchUniswapMarkets = async () => {
+  const fetchLogs = async () => {
     try {
-      const poolsRes = await fetch('https://yields.llama.fi/pools');
-      const poolsData = await poolsRes.json();
+      const { API_URL } = require('@/constants/Config');
+      const res = await fetch(`${API_URL}/activity`);
+      const json = await res.json();
+      if (json.success) setLogsData(json.data);
+    } catch (error) {
+      console.error('Logs fetch error:', error);
+    }
+  };
+
+  const fetchCryptoMarkets = async () => {
+    try {
+      setIsLoading(true);
+      // Fetch top volume pairs for Base and Ethereum
+      const res = await fetch('https://api.dexscreener.com/latest/dex/search?q=base%20eth');
+      const json = await res.json();
       
-      // Filter Uniswap V3 pools
-      const uniPools = poolsData.data.filter((p: any) => 
-        p.project === 'uniswap-v3' && (p.chain === 'Ethereum' || p.chain === 'Base')
-      );
+      if (!json.pairs) throw new Error('No pairs found');
 
-      // Deduplicate by token address (Take top pool by TVL for each unique token)
-      const uniqueTokens: Record<string, any> = {};
-      uniPools.forEach((p: any) => {
-        const addr = p.underlyingTokens[0];
-        if (!uniqueTokens[addr] || p.tvlUsd > uniqueTokens[addr].tvlUsd) {
-          uniqueTokens[addr] = p;
-        }
-      });
-
-      const topPools = Object.values(uniqueTokens)
-        .sort((a: any, b: any) => b.tvlUsd - a.tvlUsd)
+      // Sort by volume to get the "big stuff"
+      const sorted = json.pairs
+        .filter((p: any) => p.baseToken && (p.chainId === 'base' || p.chainId === 'ethereum'))
+        .sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
         .slice(0, 50);
 
-      const chainMap: Record<string, string> = { 'Ethereum': 'ethereum', 'Base': 'base' };
-      const priceQuery = topPools
-        .map((p: any) => `${chainMap[p.chain]}:${p.underlyingTokens[0]}`)
-        .join(',');
-
-      const pricesRes = await fetch(`https://coins.llama.fi/prices/current/${priceQuery}`);
-      const pricesData = await pricesRes.json();
-
-      const mapped = topPools.map((p: any) => {
-        const tokenAddr = p.underlyingTokens[0];
-        const coinKey = `${chainMap[p.chain]}:${tokenAddr}`;
-        const priceInfo = pricesData.coins[coinKey];
-        const symbol = p.symbol.split('-')[0];
-
-        return {
-          id: p.pool,
-          tokenAddress: tokenAddr,
-          symbol: symbol,
-          name: symbol, 
-          priceUSD: priceInfo?.price?.toString() || '0',
-          volume24h: p.volumeUsd1d?.toString() || '0',
-          priceChange24h: priceInfo?.confidence ? (Math.random() * 4 - 1).toFixed(2) : '0', 
-          chain: p.chain,
-          category: p.category || 'DeFi',
-          logoUrl: `https://tokens.llama.fi/token/${chainMap[p.chain]}/${tokenAddr}`,
-          tokenDayData: Array(12).fill(0).map((_, i) => ({ 
-            priceUSD: (priceInfo?.price || 0 * (1 + (Math.random() * 0.1 - 0.05))).toString() 
-          }))
-        };
-      });
+      const mapped = sorted.map((p: any) => ({
+        id: p.baseToken.address,
+        tokenAddress: p.baseToken.address,
+        symbol: p.baseToken.symbol,
+        name: p.baseToken.name,
+        priceUSD: p.priceUsd || '0',
+        volume24h: p.volume?.h24?.toString() || '0',
+        priceChange24h: p.priceChange?.h24?.toFixed(2) || '0',
+        chain: p.chainId === 'base' ? 'Base' : 'Ethereum',
+        chainId: p.chainId === 'base' ? 8453 : 1,
+        category: 'Tokens',
+        // Use DexScreener imageUrl if available, otherwise fallback to llama.fi
+        logoUrl: p.info?.imageUrl || `https://tokens.llama.fi/token/${p.chainId === 'base' ? 'base' : 'ethereum'}/${p.baseToken.address}`,
+        tokenDayData: Array(12).fill(0).map((_, i) => ({ 
+          priceUSD: (parseFloat(p.priceUsd || '0') * (1 + (Math.random() * 0.1 - 0.05))).toString() 
+        }))
+      }));
 
       setCryptoData(mapped);
     } catch (error) {
-      console.error('Uniswap market fetch error:', error);
+      console.error('Crypto market fetch error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -132,7 +125,11 @@ export default function SearchScreen() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchUniswapMarkets(), fetchPolymarketMarkets()]);
+    await Promise.all([
+      fetchCryptoMarkets(), 
+      fetchPolymarketMarkets(),
+      fetchLogs()
+    ]);
     setIsLoading(false);
   }, []);
 
@@ -209,7 +206,18 @@ export default function SearchScreen() {
 
     return (
       <Animated.View entering={FadeInDown.delay(index * 40)}>
-        <TouchableOpacity style={styles.premiumCard} onPress={() => router.push(`/token/${item.tokenAddress}`)}>
+        <TouchableOpacity 
+          style={styles.premiumCard} 
+          onPress={() => router.push({
+            pathname: `/token/${item.tokenAddress}`,
+            params: { 
+              logoUrl: item.logoUrl,
+              symbol: item.symbol,
+              name: item.name,
+              chainId: item.chainId
+            }
+          })}
+        >
           <View style={styles.cardMain}>
             <View style={styles.tokenBrand}>
               <View style={styles.logoWrapper}>
@@ -227,7 +235,14 @@ export default function SearchScreen() {
             </View>
             <View style={styles.chartCol}>{renderSparkline(item.tokenDayData)}</View>
             <View style={styles.priceCol}>
-              <Text style={styles.priceValueText}>${parseFloat(item.priceUSD || '0').toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+              <Text style={styles.priceValueText}>
+                {(() => {
+                  const val = parseFloat(item.priceUSD || '0');
+                  if (val < 0.0001) return `$${val.toFixed(8)}`;
+                  if (val < 1) return `$${val.toFixed(4)}`;
+                  return `$${val.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+                })()}
+              </Text>
               <Text style={[styles.changeText, { color: parseFloat(item.priceChange24h) >= 0 ? '#34C759' : '#FF3B30' }]}>
                 {parseFloat(item.priceChange24h) >= 0 ? '+' : ''}{item.priceChange24h}%
               </Text>
@@ -261,6 +276,33 @@ export default function SearchScreen() {
             </View>
           </View>
         </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderLogItem = ({ item, index }: { item: any, index: number }) => {
+    const isTrade = item.type === 'trade';
+    const date = new Date(item.timestamp || item.date);
+    
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 40)}>
+        <View style={styles.premiumCard}>
+          <View style={styles.logHeader}>
+            <View style={[styles.logIcon, { backgroundColor: isTrade ? 'rgba(52, 199, 89, 0.1)' : 'rgba(177, 87, 251, 0.1)' }]}>
+              <Ionicons name={isTrade ? "swap-horizontal" : "search"} size={14} color={isTrade ? '#34C759' : '#b157fb'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.logTitle}>{isTrade ? 'Trade Executed' : 'Research Ready'}</Text>
+              <Text style={styles.logDate}>{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {item.walletAddress?.slice(0, 6)}...{item.walletAddress?.slice(-4)}</Text>
+            </View>
+            {isTrade && <Text style={styles.logAmount}>${Number(item.amountUsd || 0).toFixed(2)}</Text>}
+          </View>
+          <Text style={styles.logDesc} numberOfLines={2}>
+            {isTrade 
+              ? `Swapped ${item.amountIn} ${item.symbolIn} for ${item.symbolOut} on ${item.chain || 'Base'}`
+              : `Deep analysis completed for: ${item.title || 'Market Discovery'}`}
+          </Text>
+        </View>
       </Animated.View>
     );
   };
@@ -305,6 +347,9 @@ export default function SearchScreen() {
            <TouchableOpacity style={[styles.toggleBtn, activeMarket === 'predictions' && styles.activeToggle]} onPress={() => setActiveMarket('predictions')}>
              <Text style={[styles.toggleBtnText, activeMarket === 'predictions' && styles.activeToggleText]}>Predictions</Text>
            </TouchableOpacity>
+           <TouchableOpacity style={[styles.toggleBtn, activeMarket === 'logs' && styles.activeToggle]} onPress={() => setActiveMarket('logs')}>
+             <Text style={[styles.toggleBtnText, activeMarket === 'logs' && styles.activeToggleText]}>Logs</Text>
+           </TouchableOpacity>
         </View>
         <View style={styles.catsRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catsScroll}>
@@ -320,9 +365,9 @@ export default function SearchScreen() {
           </ScrollView>
         </View>
         <FlatList
-          data={activeMarket === 'crypto' ? filteredCrypto : filteredPredictions}
-          keyExtractor={item => item.id || item.slug}
-          renderItem={activeMarket === 'crypto' ? renderCryptoItem : renderPredictionItem}
+          data={activeMarket === 'crypto' ? filteredCrypto : (activeMarket === 'predictions' ? filteredPredictions : logsData)}
+          keyExtractor={item => item.id || item.slug || item._id}
+          renderItem={activeMarket === 'crypto' ? renderCryptoItem : (activeMarket === 'predictions' ? renderPredictionItem : renderLogItem)}
           contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#fff" />}
@@ -392,6 +437,12 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { fontFamily: 'Inter-Medium', fontSize: 15, color: 'rgba(255,255,255,0.2)', marginTop: 16 },
   volTrackSmall: { height: 3, width: 60, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, marginTop: 6, overflow: 'hidden' },
-  volFillSmall: { height: '100%', borderRadius: 2 }
+  volFillSmall: { height: '100%', borderRadius: 2 },
+  logHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  logIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  logTitle: { fontFamily: 'Manrope-Bold', fontSize: 14, color: '#fff' },
+  logDate: { fontFamily: 'Inter-Medium', fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+  logAmount: { fontFamily: 'Inter-Bold', fontSize: 14, color: '#fff' },
+  logDesc: { fontFamily: 'Inter-Medium', fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 18 }
 });
 

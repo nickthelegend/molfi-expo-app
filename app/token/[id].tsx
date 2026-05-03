@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AIResearchBox } from '@/components/token/AIResearchBox';
@@ -32,49 +33,73 @@ function StatPill({ label, value }: { label: string, value: string }) {
 }
 
 export default function TokenDetail() {
-  const { id } = useLocalSearchParams();
+  const { id, logoUrl: initialLogo, symbol: initialSymbol, name: initialName, chainId: initialChainId } = useLocalSearchParams();
   const colorScheme = useColorScheme() ?? 'dark';
   const theme = Colors[colorScheme];
   const router = useRouter();
 
-  const [token, setToken] = useState<any>(null);
+  const [token, setToken] = useState<any>({
+    id: id,
+    symbol: initialSymbol || 'TOKEN',
+    name: initialName || 'Token',
+    logoUrl: initialLogo,
+    chainId: initialChainId ? Number(initialChainId) : 8453
+  });
   const [dayData, setDayData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      // 1. Fetch Price from DefiLlama Coins
-      // We try Ethereum and Base as defaults
-      const priceRes = await fetch(`https://coins.llama.fi/prices/current/ethereum:${id},base:${id}`);
-      const priceData = await priceRes.json();
-      
-      const coinKey = priceData.coins[`ethereum:${id}`] ? `ethereum:${id}` : `base:${id}`;
-      const priceInfo = priceData.coins[coinKey];
+      const isAddress = (id as string).startsWith('0x');
 
-      // 2. Fetch Yields/TVL from DefiLlama (Optional, but good for stats)
-      const yieldsRes = await fetch('https://yields.llama.fi/pools');
-      const yieldsData = await yieldsRes.json();
-      const pool = yieldsData.data.find((p: any) => 
-        p.project === 'uniswap-v3' && 
-        p.underlyingTokens.some((t: string) => t.toLowerCase() === (id as string).toLowerCase())
-      );
+      if (isAddress) {
+        // 1. Fetch Price from DefiLlama Coins
+        const priceRes = await fetch(`https://coins.llama.fi/prices/current/ethereum:${id},base:${id}`);
+        const priceData = await priceRes.json();
+        
+        const coinKey = priceData.coins[`ethereum:${id}`] ? `ethereum:${id}` : `base:${id}`;
+        const priceInfo = priceData.coins[coinKey];
 
-      setToken({
-        id: id,
-        symbol: priceInfo?.symbol || 'TOKEN',
-        name: priceInfo?.symbol || 'Token',
-        totalValueLockedUSD: pool?.tvlUsd || 0,
-      });
+        const yieldsRes = await fetch('https://yields.llama.fi/pools');
+        const yieldsData = await yieldsRes.json();
+        const pool = yieldsData.data.find((p: any) => 
+          p.project === 'uniswap-v3' && 
+          p.underlyingTokens.some((t: string) => t.toLowerCase() === (id as string).toLowerCase())
+        );
 
-      // 3. Mock/Use some data for the chart
-      // In a real app, we'd use DefiLlama historical prices API: /chart/{chain}:{address}
-      setDayData([
-        { priceUSD: priceInfo?.price?.toString() || '0', volumeUSD: pool?.volumeUsd1d || 0 },
-        { priceUSD: (priceInfo?.price || 0 * 0.95).toString(), volumeUSD: 0 } // Mock previous day
-      ]);
+        setToken({
+          id: id,
+          symbol: priceInfo?.symbol || 'TOKEN',
+          name: priceInfo?.name || priceInfo?.symbol || 'Token',
+          totalValueLockedUSD: pool?.tvlUsd || 0,
+          logoUrl: `https://tokens.llama.fi/token/${coinKey.split(':')[0]}/${id}`
+        });
+
+        setDayData([
+          { priceUSD: priceInfo?.price?.toString() || '0', volumeUSD: pool?.volumeUsd1d || 0 },
+          { priceUSD: ((priceInfo?.price || 0) * 0.95).toString(), volumeUSD: 0 }
+        ]);
+      } else {
+        // Fetch Protocol Data
+        const res = await fetch(`https://api.llama.fi/protocol/${id}`);
+        const p = await res.json();
+        
+        setToken({
+          id: id,
+          symbol: p.symbol || 'PROT',
+          name: p.name || 'Protocol',
+          totalValueLockedUSD: p.tvl?.[p.tvl.length - 1]?.totalLiquidity || 0,
+          logoUrl: p.logo
+        });
+
+        setDayData(p.tvl?.slice(-2).map((t: any) => ({
+          priceUSD: t.totalLiquidity.toString(),
+          volumeUSD: 0
+        })) || []);
+      }
     } catch (error) {
-      console.error('DefiLlama fetch error:', error);
+      console.error('Data fetch error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +174,11 @@ export default function TokenDetail() {
         <View style={styles.tokenInfoSection}>
           <View style={styles.tokenNameRow}>
             <View style={[styles.tokenIcon, { backgroundColor: `${theme.primary}22` }]}>
-              <Text style={styles.tokenIconText}>{token?.symbol?.[0]}</Text>
+              {token?.logoUrl ? (
+                <Image source={{ uri: token.logoUrl }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
+              ) : (
+                <Text style={styles.tokenIconText}>{token?.symbol?.[0]}</Text>
+              )}
             </View>
             <View style={styles.tokenNameContainer}>
               <View style={styles.titleWithBadge}>
@@ -185,7 +214,15 @@ export default function TokenDetail() {
               <Ionicons name="logo-twitter" size={20} color="#A0A0A0" />
             </TouchableOpacity>
             <Button
-              onPress={() => router.push({ pathname: '/swap', params: { tokenId: id } })}
+              onPress={() => router.push({ 
+                pathname: '/swap', 
+                params: { 
+                  tokenAddress: id, 
+                  symbol: token?.symbol,
+                  name: token?.name,
+                  chainId: token?.chainId
+                } 
+              })}
               variant="primary"
               size="large"
               style={{ flex: 1, height: 56 }}
