@@ -16,6 +16,8 @@ import { useAccount } from 'wagmi';
 import { keeperHub } from '@/utils/keeperhub';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { ScrollView } from 'react-native';
 
 export default function WorkflowsScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
@@ -24,6 +26,7 @@ export default function WorkflowsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  const [workflows, setWorkflows] = useState<any[]>([]);
   const [integrations, setIntegrations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -102,9 +105,16 @@ export default function WorkflowsScreen() {
   const renderHeader = () => (
     <View>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Automations</Text>
-          <Text style={styles.subtitle}>Powered by KeeperHub</Text>
+        <View style={styles.logoRow}>
+          <Image 
+            source={require('@/assets/logo/logo.png')} 
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <View>
+            <Text style={styles.title}>Automations</Text>
+            <Text style={styles.subtitle}>Powered by KeeperHub</Text>
+          </View>
         </View>
         <TouchableOpacity 
           style={[styles.createBtn, { backgroundColor: theme.primary }]}
@@ -177,7 +187,9 @@ export default function WorkflowsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
-  title: { fontFamily: 'Manrope-ExtraBold', fontSize: 28, color: '#fff' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 32, height: 32 },
+  title: { fontFamily: 'Manrope-ExtraBold', fontSize: 24, color: '#fff' },
   subtitle: { fontFamily: 'Inter-Regular', fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 4 },
   createBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },

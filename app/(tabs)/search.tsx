@@ -6,7 +6,6 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView, 
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +13,7 @@ import {
   RefreshControl,
   ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
@@ -271,7 +271,14 @@ export default function SearchScreen() {
       <LinearGradient colors={['rgba(177, 87, 251, 0.08)', 'transparent', 'transparent']} style={StyleSheet.absoluteFill} />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
-           <Text style={styles.discoverTitle}>Discover</Text>
+           <View style={styles.logoRow}>
+             <Image 
+               source={require('@/assets/logo/logo.png')} 
+               style={styles.logo}
+               contentFit="contain"
+             />
+             <Text style={styles.discoverTitle}>Discover</Text>
+           </View>
            <TouchableOpacity onPress={onRefresh} style={styles.iconBtn}>
              {isRefreshing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="reload" size={20} color="#fff" />}
            </TouchableOpacity>
@@ -339,7 +346,9 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 10, marginBottom: 20 },
-  discoverTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 32, color: '#fff' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logo: { width: 32, height: 32 },
+  discoverTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 28, color: '#fff' },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
   searchBox: { paddingHorizontal: 24, marginBottom: 20 },
   searchContainer: { height: 56, borderRadius: 28, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 12 },

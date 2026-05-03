@@ -72,6 +72,7 @@ export default function HomeScreen() {
   const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   
   const [agents, setAgents] = useState([]);
+  const [chartData, setChartData] = useState(sampleData);
   const [notifications, setNotifications] = useState([
     { id: '1', title: 'Agent "Aura" executed a swap', time: '2m ago', type: 'swap' },
     { id: '2', title: 'New trading task started', time: '15m ago', type: 'task' },
@@ -82,6 +83,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (address) {
       fetchAgents();
+      fetchHistory();
     }
   }, [address]);
 
@@ -97,9 +99,21 @@ export default function HomeScreen() {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${API_URL}/portfolio/history?walletAddress=${address}`);
+      const data = await res.json();
+      if (data.success) {
+        setChartData(data.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch history:", e);
+    }
+  };
+
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([refetchBalance(), fetchAgents()]);
+    await Promise.all([refetchBalance(), fetchAgents(), fetchHistory()]);
     setIsRefreshing(false);
   };
 
@@ -162,7 +176,7 @@ export default function HomeScreen() {
         {/* Performance Chart */}
         <View style={styles.chartSection}>
           <ModernLineChart 
-            data={sampleData} 
+            data={chartData} 
             height={280}
           />
         </View>
