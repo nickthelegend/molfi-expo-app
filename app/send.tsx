@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button } from '@/components/ui/Button';
+import { addActivity } from '@/utils/activity';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +53,12 @@ export default function SendScreen() {
       // Mocking the send transaction for UI demonstration
       // In a real app, this would use useSendTransaction from wagmi
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      await addActivity({
+        title: `Sent ${amount} ${balance?.symbol || 'ETH'}`,
+        type: 'send'
+      });
+
       setStatus('success');
       setTimeout(() => router.back(), 2000);
     } catch (e: any) {

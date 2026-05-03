@@ -145,7 +145,7 @@ export function Spinner({
   const primaryColor = useColor('text');
   const textColor = useColor('text');
 
-  const config = sizeConfig[size];
+  const config = sizeConfig[size] || sizeConfig.default;
   const spinnerColor = color || primaryColor;
   const animationDuration = speedConfig[speed];
 
@@ -303,7 +303,7 @@ export function Spinner({
   const containerStyle: ViewStyle = {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: config.gap,
+    gap: config?.gap || 8,
   };
 
   return (

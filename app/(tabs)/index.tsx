@@ -24,6 +24,8 @@ import { API_URL } from '@/constants/Config';
 
 
 
+import { getActivities, formatTime, Activity } from '@/utils/activity';
+
 const { width } = Dimensions.get('window');
 
 function ActionButton({ label, icon, onPress, theme }: { label: string; icon: any; onPress: () => void; theme: any }) {
@@ -59,20 +61,20 @@ export default function HomeScreen() {
   const { data: ensName } = useEnsName({ address: address as `0x${string}`, chainId: 1 });
   
   const [agents, setAgents] = useState([]);
-
-  const [notifications, setNotifications] = useState([
-    { id: '1', title: 'Agent "Aura" executed a swap', time: '2m ago', type: 'swap' },
-    { id: '2', title: 'New trading task started', time: '15m ago', type: 'task' },
-    { id: '3', title: 'Portfolio grew by 2.4% today', time: '1h ago', type: 'stats' },
-  ]);
+  const [notifications, setNotifications] = useState<Activity[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    loadActivities();
     if (address) {
       fetchAgents();
-
     }
   }, [address]);
+
+  const loadActivities = async () => {
+    const data = await getActivities();
+    setNotifications(data);
+  };
 
   const fetchAgents = async () => {
     try {
@@ -195,7 +197,7 @@ export default function HomeScreen() {
               </View>
               <View style={styles.notifContent}>
                 <Text style={styles.notifTitle}>{notif.title}</Text>
-                <Text style={styles.notifTime}>{notif.time}</Text>
+                <Text style={styles.notifTime}>{formatTime(notif.timestamp)}</Text>
               </View>
             </Animated.View>
           ))}

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { addActivity } from '@/utils/activity';
 import {
   createPublicClient,
   createWalletClient,
@@ -194,18 +195,26 @@ export function useSwap(): UseSwapReturn {
       let decimalsIn = params.tokenInDecimals;
       let decimalsOut = params.tokenOutDecimals;
 
+      const isNativeIn = params.tokenIn.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+      const isNativeOut = params.tokenOut.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+
       if (!decimalsIn || !decimalsOut || decimalsOut === 18) {
         try {
-          const dIn = await publicClient.readContract({
-            address: params.tokenIn,
+          const addrIn = isNativeIn ? wrapAddress(params.chainId, params.tokenIn) : params.tokenIn;
+          const addrOut = isNativeOut ? wrapAddress(params.chainId, params.tokenOut) : params.tokenOut;
+
+          const dIn = isNativeIn ? 18 : await publicClient.readContract({
+            address: addrIn,
             abi: ERC20_ABI,
             functionName: 'decimals',
           }) as number;
-          const dOut = await publicClient.readContract({
-            address: params.tokenOut,
+          
+          const dOut = isNativeOut ? 18 : await publicClient.readContract({
+            address: addrOut,
             abi: ERC20_ABI,
             functionName: 'decimals',
           }) as number;
+
           decimalsIn = dIn;
           decimalsOut = dOut;
           console.log(`[useSwap] Fetched decimals: IN=${decimalsIn}, OUT=${decimalsOut}`);
@@ -391,8 +400,8 @@ export function useSwap(): UseSwapReturn {
         abi: SWAP_ROUTER_ABI,
         functionName: 'exactInputSingle',
         args: [{
-          tokenIn:           params.tokenIn,
-          tokenOut:          params.tokenOut,
+          tokenIn:           tokenIn, // Use wrapped address
+          tokenOut:          tokenOut, // Use wrapped address
           fee:               best.fee,
           recipient,
           deadline,
@@ -426,5 +435,16 @@ export function useSwap(): UseSwapReturn {
     setError(null);
   }, []);
 
-  return { step, quote, txHash, error, getQuote, executeSwap, reset };
+  const executeSwapWithLogging = useCallback(async (params: SwapParams) => {
+    const hash = await executeSwap(params);
+    if (hash) {
+      await addActivity({
+        title: `Swapped ${params.amountIn} ${params.symbolIn || 'tokens'}`,
+        type: 'swap'
+      });
+    }
+    return hash;
+  }, [executeSwap]);
+
+  return { step, quote, txHash, error, getQuote, executeSwap: executeSwapWithLogging, reset };
 }

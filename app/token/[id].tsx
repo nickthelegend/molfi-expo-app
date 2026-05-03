@@ -68,35 +68,54 @@ export default function TokenDetail() {
           p.underlyingTokens.some((t: string) => t.toLowerCase() === (id as string).toLowerCase())
         );
 
-        setToken({
-          id: id,
-          symbol: priceInfo?.symbol || 'TOKEN',
-          name: priceInfo?.name || priceInfo?.symbol || 'Token',
+        setToken((prev: any) => ({
+          ...prev,
+          symbol: priceInfo?.symbol || prev.symbol,
+          name: priceInfo?.name || priceInfo?.symbol || prev.name,
           totalValueLockedUSD: pool?.tvlUsd || 0,
-          logoUrl: `https://tokens.llama.fi/token/${coinKey.split(':')[0]}/${id}`
-        });
+          logoUrl: prev.logoUrl || `https://tokens.llama.fi/token/${coinKey.split(':')[0]}/${id}`
+        }));
 
-        setDayData([
-          { priceUSD: priceInfo?.price?.toString() || '0', volumeUSD: pool?.volumeUsd1d || 0 },
-          { priceUSD: ((priceInfo?.price || 0) * 0.95).toString(), volumeUSD: 0 }
-        ]);
+        // 3. Fetch Real Historical Data from DefiLlama
+        const chartRes = await fetch(`https://coins.llama.fi/chart/${coinKey}?span=24&period=1h`);
+        const chartData = await chartRes.json();
+        
+        if (chartData.prices && chartData.prices.length > 0) {
+           setDayData(chartData.prices.map((p: any) => ({
+             priceUSD: p.price.toString(),
+             volumeUSD: 0
+           })));
+        } else {
+           setDayData([
+             { priceUSD: priceInfo?.price?.toString() || '0', volumeUSD: pool?.volumeUsd1d || 0 },
+             { priceUSD: ((priceInfo?.price || 0) * 0.95).toString(), volumeUSD: 0 }
+           ]);
+        }
       } else {
         // Fetch Protocol Data
         const res = await fetch(`https://api.llama.fi/protocol/${id}`);
         const p = await res.json();
         
-        setToken({
-          id: id,
-          symbol: p.symbol || 'PROT',
-          name: p.name || 'Protocol',
+        setToken((prev: any) => ({
+          ...prev,
+          symbol: p.symbol || prev.symbol,
+          name: p.name || prev.name,
           totalValueLockedUSD: p.tvl?.[p.tvl.length - 1]?.totalLiquidity || 0,
-          logoUrl: p.logo
-        });
+          logoUrl: prev.logoUrl || p.logo
+        }));
 
-        setDayData(p.tvl?.slice(-2).map((t: any) => ({
-          priceUSD: t.totalLiquidity.toString(),
-          volumeUSD: 0
-        })) || []);
+        // Use real protocol TVL history for the chart
+        if (p.tvl && p.tvl.length > 0) {
+           setDayData(p.tvl.slice(-24).map((t: any) => ({
+             priceUSD: t.totalLiquidity.toString(),
+             volumeUSD: 0
+           })));
+        } else {
+           setDayData(p.tvl?.slice(-2).map((t: any) => ({
+             priceUSD: t.totalLiquidity.toString(),
+             volumeUSD: 0
+           })) || []);
+        }
       }
     } catch (error) {
       console.error('Data fetch error:', error);
