@@ -87,7 +87,7 @@ const appkit = createAppKit({
   clipboardClient,
   storage,
   defaultNetwork: zeroGMainnet,
-  enableAnalytics: true,
+  enableAnalytics: false,
 });
 
 import { registerForPushNotificationsAsync, useNotificationNavigation } from '@/hooks/useNotifications';
@@ -97,6 +97,9 @@ function RootContent() {
   const router = useRouter();
   const segments = useSegments();
   const { isConnected, status, address } = useAccount();
+
+  console.log(`[Root] Account Status: ${status}, Connected: ${isConnected}, Address: ${address}`);
+  console.log(`[Root] Navigator Online: ${global.navigator?.onLine}`);
 
   useNotificationNavigation(router);
 

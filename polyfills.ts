@@ -1,33 +1,67 @@
-// 1. Define polyfills FIRST before any imports
-if (typeof global.Event !== 'function') {
+// 1. ABSOLUTE FIRST: Define global browser stubs
+const globalObj = typeof globalThis !== 'undefined' ? globalThis : global;
+
+(globalObj as any).window = (globalObj as any).window || globalObj;
+(globalObj as any).self = (globalObj as any).self || globalObj;
+
+const navigatorStub = {
+  onLine: true,
+  userAgent: 'React-Native',
+};
+
+// Use defineProperty to ensure it sticks in Hermes
+try {
+  Object.defineProperty(globalObj, 'navigator', {
+    value: navigatorStub,
+    writable: true,
+    configurable: true,
+  });
+} catch (e) {
+  (globalObj as any).navigator = navigatorStub;
+}
+
+if (typeof (globalObj as any).window.navigator === 'undefined') {
+  (globalObj as any).window.navigator = navigatorStub;
+}
+
+// 2. Event Polyfills (needed for WalletConnect online/offline events)
+if (typeof (globalObj as any).Event !== 'function') {
   const EventPolyfill = function (type: string) {
     this.type = type;
   };
   EventPolyfill.prototype = {};
-  (global as any).Event = EventPolyfill;
+  (globalObj as any).Event = EventPolyfill;
 }
 
-if (typeof global.CustomEvent !== 'function') {
+if (typeof (globalObj as any).CustomEvent !== 'function') {
   const CustomEventPolyfill = function (type: string, options: any = {}) {
     this.type = type;
     this.detail = options.detail;
   };
-  // Ensure Event.prototype exists before using it
-  const baseProto = (global as any).Event?.prototype || {};
+  const baseProto = (globalObj as any).Event?.prototype || {};
   CustomEventPolyfill.prototype = Object.create(baseProto);
-  (global as any).CustomEvent = CustomEventPolyfill;
+  (globalObj as any).CustomEvent = CustomEventPolyfill;
 }
 
-// 2. Now import standard polyfills
-import 'text-encoding';
-import "@walletconnect/react-native-compat";
+// 3. Mock NetInfo for libraries that use it directly
+(globalObj as any).NetInfo = {
+  fetch: () => Promise.resolve({ isConnected: true, isInternetReachable: true }),
+  addEventListener: (fn: any) => {
+    // Immediate callback to simulate "online"
+    setTimeout(() => fn({ isConnected: true, isInternetReachable: true }), 0);
+    return () => {};
+  },
+  useNetInfo: () => ({ isConnected: true, isInternetReachable: true }),
+};
 
-// Extra stubs for browser-first SDKs
-if (typeof global.window === 'undefined') (global as any).window = global;
-if (typeof global.self === 'undefined') (global as any).self = global;
-if (typeof global.document === 'undefined') (global as any).document = {
+// 4. Document Stub
+if (typeof (globalObj as any).document === 'undefined') (globalObj as any).document = {
   createElement: () => ({}),
   getElementsByTagName: () => [],
 };
 
-console.log('[Polyfills] Web events, encoding, and browser stubs polyfilled');
+// 5. Now import side-effect heavy polyfills using require to ensure order
+require('text-encoding');
+require('@walletconnect/react-native-compat');
+
+console.log('[Polyfills] System status: FORCED ONLINE (v2)');
