@@ -90,11 +90,19 @@ const appkit = createAppKit({
   enableAnalytics: true,
 });
 
+import { registerForPushNotificationsAsync } from '@/hooks/useNotifications';
+
 function RootContent() {
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
   const router = useRouter();
   const segments = useSegments();
-  const { isConnected, status } = useAccount();
+  const { isConnected, status, address } = useAccount();
+
+  useEffect(() => {
+    if (isConnected && address) {
+      registerForPushNotificationsAsync(address);
+    }
+  }, [isConnected, address]);
 
   useEffect(() => {
     // Wait for onboarding state to load

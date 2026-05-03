@@ -144,6 +144,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="workflows"
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon 
+              name="infinite-outline" 
+              activeName="infinite" 
+              focused={focused} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           tabBarIcon: ({ focused, color }) => (
