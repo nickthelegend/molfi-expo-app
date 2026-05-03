@@ -1,3 +1,5 @@
+import 'text-encoding';
+import "@walletconnect/react-native-compat";
 import '../polyfills';
 import { ToastProvider } from '@/components/ui/Toast';
 import {
@@ -70,7 +72,7 @@ const metadata = {
   icons: ["https://avatars.githubusercontent.com/u/179229932"],
   redirect: {
     native: "molfi://",
-    universal: "molfi.app",
+    universal: "https://molfi.app",
   },
 };
 
@@ -91,6 +93,11 @@ const appkit = createAppKit({
   storage,
   defaultNetwork: zeroGMainnet,
   enableAnalytics: false,
+  features: {
+    email: false,
+    socials: false,
+    onboarding: false,
+  },
 });
 
 // import { registerForPushNotificationsAsync, useNotificationNavigation } from '@/hooks/useNotifications';

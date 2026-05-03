@@ -79,7 +79,7 @@ export default function NewAgentScreen() {
   const [checkingEns, setCheckingEns] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(1);
 
-  const fullEnsDomain = ensParent && agentEnsSub ? `${agentEnsSub}.${ensParent}.eth` : null;
+  const fullEnsDomain = agentEnsSub ? `${agentEnsSub}.${ensParent || 'molfi'}.eth` : null;
   const [debouncedDomain] = useDebounce(fullEnsDomain, 600);
 
   // Animation
@@ -165,26 +165,17 @@ export default function NewAgentScreen() {
     }
   };
 
-  const handleEnsPayAndCreateAgent = React.useCallback(async () => {
-    console.log('[NewAgent] handleEnsPayAndCreateAgent started');
-    if (!address || !name || !strategy || !funding) {
-      console.warn('[NewAgent] Missing required fields for creation:', { address, name, strategy, funding });
-      return;
-    }
-    
+  const [pendingAgentData, setPendingAgentData] = useState<{ id: string; address: string } | null>(null);
+
+  const startEnsFlow = async () => {
+    console.log('[NewAgent] startEnsFlow started');
+    if (!address || !name || !strategy || !funding) return;
+
     setIsSubmitting(true);
     setLoadingText('Initializing OWS Wallet...');
-    
-    try {
-      // STEP 1: Call API to create agent wallet via OWS
-      console.log('[NewAgent] STEP 1: Calling /api/agents/init');
-      const initPayload = {
-        walletAddress: address,
-        name,
-        avatarColor,
-      };
-      console.log('[NewAgent] Init Payload:', initPayload);
 
+    try {
+      const initPayload = { walletAddress: address, name, avatarColor };
       const initRes = await fetch(`${API_URL}/agents/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,31 +183,35 @@ export default function NewAgentScreen() {
       });
       
       const initJson = await initRes.json();
-      console.log('[NewAgent] Init Response:', initJson);
-
       if (!initJson.success) throw new Error(initJson.error || 'Initialization failed');
       
-      const { agentId, agentWalletAddress } = initJson;
-      console.log('[NewAgent] Agent Initialized:', { agentId, agentWalletAddress });
+      setPendingAgentData({ id: initJson.agentId, address: initJson.agentWalletAddress });
+      setIsSubmitting(false);
+      setPaymentVisible(true);
+    } catch (error: any) {
+      console.error('[NewAgent] Init error:', error);
+      alert(error.message || 'Initialization failed');
+      setIsSubmitting(false);
+    }
+  };
 
-      // STEP 2: Register ENS subdomain on-chain (user signs)
-      setLoadingText('Awaiting ENS Signature...');
-      console.log('[NewAgent] STEP 2: Registering ENS subdomain:', fullEnsDomain);
-      
+  const handleConfirmEns = React.useCallback(async () => {
+    if (!pendingAgentData || !fullEnsDomain) return;
+    setPaymentVisible(false);
+    setIsSubmitting(true);
+    setLoadingText('Awaiting ENS Signature...');
+
+    try {
+      console.log('[NewAgent] Registering ENS subdomain:', fullEnsDomain);
       const { txHash, success } = await registerSubdomain(
-        fullEnsDomain!,
-        agentWalletAddress,
+        fullEnsDomain,
+        pendingAgentData.address,
         selectedDuration
       );
-      
-      console.log('[NewAgent] ENS Registration result:', { txHash, success });
 
       if (!success) throw new Error('ENS registration transaction failed');
 
-      // STEP 3: Finalize agent with ENS metadata
       setLoadingText('Finalizing Identity...');
-      console.log('[NewAgent] STEP 3: Finalizing agent:', agentId);
-      
       const finalizePayload = {
         ensSubdomain: fullEnsDomain,
         ensTxHash: txHash,
@@ -227,36 +222,26 @@ export default function NewAgentScreen() {
         tradingPairs,
         freeFormPrompt: strategy === 'AI Free Form' ? freeFormPrompt : null
       };
-      console.log('[NewAgent] Finalize Payload:', finalizePayload);
 
-      const finalizeRes = await fetch(`${API_URL}/agents/${agentId}/finalize`, {
+      const finalizeRes = await fetch(`${API_URL}/agents/${pendingAgentData.id}/finalize`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalizePayload)
       });
 
       const finalizeJson = await finalizeRes.json();
-      console.log('[NewAgent] Finalize Response:', finalizeJson);
-
       if (finalizeJson.success) {
         setLoadingText('Agent Live!');
-        console.log('[NewAgent] Agent Creation Complete. Navigating to agents list.');
         setTimeout(() => routerRef.current.replace('/(tabs)/agents'), 1000);
       } else {
         throw new Error(finalizeJson.error || 'Finalization failed');
       }
-
     } catch (error: any) {
-      console.error('[NewAgent] ENS Create agent error:', error);
-      alert(error.message || 'An error occurred during creation.');
+      console.error('[NewAgent] ENS flow error:', error);
+      alert(error.message || 'An error occurred.');
       setIsSubmitting(false);
     }
-  }, [address, name, strategy, funding, avatarColor, fullEnsDomain, registerSubdomain, selectedDuration, marketType, riskLevel, tradingPairs, freeFormPrompt]);
-
-  const handleConfirmEns = React.useCallback(() => {
-    setPaymentVisible(false);
-    handleEnsPayAndCreateAgent();
-  }, [handleEnsPayAndCreateAgent]);
+  }, [pendingAgentData, fullEnsDomain, registerSubdomain, selectedDuration, marketType, strategy, funding, riskLevel, tradingPairs, freeFormPrompt]);
 
   const handleSkipEns = React.useCallback(() => {
     setPaymentVisible(false);
@@ -265,6 +250,7 @@ export default function NewAgentScreen() {
 
   const handleCloseEns = React.useCallback(() => {
     setPaymentVisible(false);
+    setPendingAgentData(null);
   }, []);
 
   const handleSubmit = React.useCallback(async () => {
@@ -391,28 +377,26 @@ export default function NewAgentScreen() {
               </View>
             </View>
 
-            {ensParent && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>ENS Subdomain <Text style={styles.optionalTag}>(optional)</Text></Text>
-                <View style={styles.ensInputRow}>
-                  <TextInput
-                    style={styles.ensSubInput}
-                    placeholder="your-agent"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
-                    value={agentEnsSub}
-                    onChangeText={validateEnsSub}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={32}
-                  />
-                  <Text style={styles.ensSuffix}>.{ensParent}.eth</Text>
-                </View>
-                {ensSubError ? <Text style={styles.ensError}>{ensSubError}</Text> : null}
-                {checkingEns && <ActivityIndicator size="small" color={theme.primary} style={{ alignSelf: 'flex-start', marginTop: 8 }} />}
-                {!checkingEns && ensAvailable === true && <Text style={styles.ensSuccess}>✓ Available</Text>}
-                {!checkingEns && ensAvailable === false && <Text style={styles.ensError}>✗ Already taken</Text>}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>ENS Subdomain <Text style={styles.optionalTag}>(optional)</Text></Text>
+              <View style={styles.ensInputRow}>
+                <TextInput
+                  style={styles.ensSubInput}
+                  placeholder="your-agent"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={agentEnsSub}
+                  onChangeText={validateEnsSub}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={32}
+                />
+                <Text style={styles.ensSuffix}>.{ensParent || 'molfi'}.eth</Text>
               </View>
-            )}
+              {ensSubError ? <Text style={styles.ensError}>{ensSubError}</Text> : null}
+              {checkingEns && <ActivityIndicator size="small" color={theme.primary} style={{ alignSelf: 'flex-start', marginTop: 8 }} />}
+              {!checkingEns && ensAvailable === true && <Text style={styles.ensSuccess}>✓ Available</Text>}
+              {!checkingEns && ensAvailable === false && <Text style={styles.ensError}>✗ Already taken</Text>}
+            </View>
           </ScrollView>
           <View style={styles.footer}>
             <TouchableOpacity 
@@ -628,7 +612,7 @@ export default function NewAgentScreen() {
           <View style={styles.footer}>
             <TouchableOpacity 
               style={[styles.primaryBtn, { backgroundColor: theme.primary }, (!ensAvailable || isSubmitting) && styles.disabledBtn]}
-              onPress={() => setPaymentVisible(true)}
+              onPress={startEnsFlow}
               disabled={!ensAvailable || isSubmitting}
             >
               <Text style={styles.primaryBtnText}>Confirm & Pay</Text>
@@ -643,10 +627,10 @@ export default function NewAgentScreen() {
       <EnsPaymentSheet
         isVisible={paymentVisible}
         fullDomain={fullEnsDomain!}
-        agentWalletAddress="0x..." // placeholder, handled in flow
+        agentWalletAddress={pendingAgentData?.address || '0x...'}
         durationYears={selectedDuration}
         priceEth="0"
-        ethUsdPrice={2400} // Mock price
+        ethUsdPrice={2400} 
         onConfirm={handleConfirmEns}
         onSkip={handleSkipEns}
         onClose={handleCloseEns}

@@ -52,7 +52,7 @@ export function EnsPaymentSheet({
 
   useEffect(() => {
     if (isVisible) {
-      translateY.value = withSpring(SCREEN_HEIGHT * 0.45, { damping: 15, stiffness: 100 });
+      translateY.value = withSpring(SCREEN_HEIGHT * 0.3, { damping: 15, stiffness: 100 });
       backdropOpacity.value = withTiming(1, { duration: 300 });
     } else {
       translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 });
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: SCREEN_HEIGHT * 0.6,
+    height: SCREEN_HEIGHT * 0.75,
     backgroundColor: '#0D0D0D',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,

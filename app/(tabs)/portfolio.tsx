@@ -82,11 +82,15 @@ function AgentWalletRow({ agent, theme }: { agent: any, theme: any }) {
     >
       <View style={styles.agentHeader}>
         <View style={[styles.agentAvatar, { backgroundColor: agent.avatarColor || theme.primary }]}>
-          <Text style={styles.agentAvatarText}>{agent.name[0]}</Text>
+          <Text style={styles.agentAvatarText}>{agent.name ? agent.name[0] : '?'}</Text>
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.agentName}>{agent.name}</Text>
-          <Text style={styles.agentAddr}>{agent.agentWalletAddress.slice(0,10)}...{agent.agentWalletAddress.slice(-4)}</Text>
+          <Text style={styles.agentName}>{agent.name || 'Unknown Agent'}</Text>
+          <Text style={styles.agentAddr}>
+            {agent.agentWalletAddress 
+              ? `${agent.agentWalletAddress.slice(0,10)}...${agent.agentWalletAddress.slice(-4)}`
+              : 'Address loading...'}
+          </Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
       </View>

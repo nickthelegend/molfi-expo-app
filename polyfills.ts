@@ -1,67 +1,16 @@
-// 1. ABSOLUTE FIRST: Define global browser stubs
+import 'react-native-get-random-values';
+import { Buffer } from 'buffer';
+
+// Only polyfill what is strictly necessary for Node-compatible libs
 const globalObj = typeof globalThis !== 'undefined' ? globalThis : global;
 
-(globalObj as any).window = (globalObj as any).window || globalObj;
-(globalObj as any).self = (globalObj as any).self || globalObj;
+(globalObj as any).Buffer = (globalObj as any).Buffer || Buffer;
+(globalObj as any).process = (globalObj as any).process || {};
+(globalObj as any).process.env = (globalObj as any).process.env || {};
+(globalObj as any).process.nextTick = (globalObj as any).process.nextTick || ((fn: any, ...args: any[]) => setTimeout(() => fn(...args), 0));
 
-const navigatorStub = {
-  onLine: true,
-  userAgent: 'React-Native',
-};
+// Base64 for crypto libs
+(globalObj as any).atob = (globalObj as any).atob || ((str: string) => Buffer.from(str, 'base64').toString('binary'));
+(globalObj as any).btoa = (globalObj as any).btoa || ((str: string) => Buffer.from(str, 'binary').toString('base64'));
 
-// Use defineProperty to ensure it sticks in Hermes
-try {
-  Object.defineProperty(globalObj, 'navigator', {
-    value: navigatorStub,
-    writable: true,
-    configurable: true,
-  });
-} catch (e) {
-  (globalObj as any).navigator = navigatorStub;
-}
-
-if (typeof (globalObj as any).window.navigator === 'undefined') {
-  (globalObj as any).window.navigator = navigatorStub;
-}
-
-// 2. Event Polyfills (needed for WalletConnect online/offline events)
-if (typeof (globalObj as any).Event !== 'function') {
-  const EventPolyfill = function (type: string) {
-    this.type = type;
-  };
-  EventPolyfill.prototype = {};
-  (globalObj as any).Event = EventPolyfill;
-}
-
-if (typeof (globalObj as any).CustomEvent !== 'function') {
-  const CustomEventPolyfill = function (type: string, options: any = {}) {
-    this.type = type;
-    this.detail = options.detail;
-  };
-  const baseProto = (globalObj as any).Event?.prototype || {};
-  CustomEventPolyfill.prototype = Object.create(baseProto);
-  (globalObj as any).CustomEvent = CustomEventPolyfill;
-}
-
-// 3. Mock NetInfo for libraries that use it directly
-(globalObj as any).NetInfo = {
-  fetch: () => Promise.resolve({ isConnected: true, isInternetReachable: true }),
-  addEventListener: (fn: any) => {
-    // Immediate callback to simulate "online"
-    setTimeout(() => fn({ isConnected: true, isInternetReachable: true }), 0);
-    return () => {};
-  },
-  useNetInfo: () => ({ isConnected: true, isInternetReachable: true }),
-};
-
-// 4. Document Stub
-if (typeof (globalObj as any).document === 'undefined') (globalObj as any).document = {
-  createElement: () => ({}),
-  getElementsByTagName: () => [],
-};
-
-// 5. Now import side-effect heavy polyfills using require to ensure order
-require('text-encoding');
-require('@walletconnect/react-native-compat');
-
-console.log('[Polyfills] System status: FORCED ONLINE (v2)');
+console.log('[Polyfills] Clean Native Suite Initialized');

@@ -130,10 +130,10 @@ export default function AgentsScreen() {
     <View style={styles.agentCard}>
       <View style={styles.cardHeader}>
         <View style={[styles.avatar, { backgroundColor: item.avatarColor || theme.primary }]}>
-          <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+          <Text style={styles.avatarText}>{item.name ? item.name.charAt(0).toUpperCase() : '?'}</Text>
         </View>
         <View style={styles.headerInfo}>
-          <Text style={styles.agentName}>{item.name}</Text>
+          <Text style={styles.agentName}>{item.name || 'Unknown Agent'}</Text>
           {item.ensSubdomain ? (
             <View style={styles.ensTag}>
               <Ionicons name="at-circle-outline" size={12} color="#00FF94" />
