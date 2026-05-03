@@ -50,7 +50,7 @@ export const keeperHub = {
   getWalletIntegration: (id: string) => keeperHubFetch(`/integrations/web3/${id}`),
 };
 
-export const MOLFI_API_URL = 'http://localhost:3002/api';
+export const MOLFI_API_URL = 'http://192.168.1.6:3002/api';
 
 export const molfiOrchestrator = {
   // Webhook registration for push notifications
@@ -69,5 +69,12 @@ export const molfiOrchestrator = {
   }).then(res => res.json()),
   deleteTask: (id: string) => fetch(`${MOLFI_API_URL}/tasks/${id}`, {
     method: 'DELETE',
+  }).then(res => res.json()),
+
+  // Simulation
+  simulateWorkflow: (workflowId: string, payload?: any) => fetch(`${MOLFI_API_URL}/simulation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workflowId, payload }),
   }).then(res => res.json()),
 };
