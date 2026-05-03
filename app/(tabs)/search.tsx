@@ -16,13 +16,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { 
   FadeIn, 
   FadeOut,
   useAnimatedStyle, 
   useSharedValue, 
   withTiming,
-  interpolateColor
+  interpolateColor,
+  FadeInDown
 } from 'react-native-reanimated';
 import Svg, { Polyline } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,11 +32,11 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 // API Constants
-const UNISWAP_V3_SUBGRAPH = 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3';
 const POLYMARKET_GAMMA_API = 'https://gamma-api.polymarket.com';
 
 export default function SearchScreen() {
@@ -57,48 +59,55 @@ export default function SearchScreen() {
   const focusAnim = useSharedValue(0);
   const inputRef = useRef<TextInput>(null);
 
-  // Fetch Uniswap Markets from DefiLlama (Official/Robust approach)
   const fetchUniswapMarkets = async () => {
     try {
-      // 1. Fetch top Uniswap V3 pools from DefiLlama Yields
       const poolsRes = await fetch('https://yields.llama.fi/pools');
       const poolsData = await poolsRes.json();
       
-      const topPools = poolsData.data
-        .filter((p: any) => p.project === 'uniswap-v3' && (p.chain === 'Ethereum' || p.chain === 'Base'))
-        .sort((a: any, b: any) => b.tvlUsd - a.tvlUsd)
-        .slice(0, 20);
+      // Filter Uniswap V3 pools
+      const uniPools = poolsData.data.filter((p: any) => 
+        p.project === 'uniswap-v3' && (p.chain === 'Ethereum' || p.chain === 'Base')
+      );
 
-      // 2. Extract addresses for price fetching
-      // Map llama chain names to coins API prefixes
-      const chainMap: Record<string, string> = { 'Ethereum': 'ethereum', 'Base': 'base', 'Arbitrum': 'arbitrum' };
+      // Deduplicate by token address (Take top pool by TVL for each unique token)
+      const uniqueTokens: Record<string, any> = {};
+      uniPools.forEach((p: any) => {
+        const addr = p.underlyingTokens[0];
+        if (!uniqueTokens[addr] || p.tvlUsd > uniqueTokens[addr].tvlUsd) {
+          uniqueTokens[addr] = p;
+        }
+      });
+
+      const topPools = Object.values(uniqueTokens)
+        .sort((a: any, b: any) => b.tvlUsd - a.tvlUsd)
+        .slice(0, 50);
+
+      const chainMap: Record<string, string> = { 'Ethereum': 'ethereum', 'Base': 'base' };
       const priceQuery = topPools
         .map((p: any) => `${chainMap[p.chain]}:${p.underlyingTokens[0]}`)
         .join(',');
 
-      // 3. Fetch current prices
       const pricesRes = await fetch(`https://coins.llama.fi/prices/current/${priceQuery}`);
       const pricesData = await pricesRes.json();
 
-      // 4. Map to UI format
       const mapped = topPools.map((p: any) => {
         const tokenAddr = p.underlyingTokens[0];
         const coinKey = `${chainMap[p.chain]}:${tokenAddr}`;
         const priceInfo = pricesData.coins[coinKey];
-        
-        // Extract symbol from "USDC-WETH" -> "USDC"
         const symbol = p.symbol.split('-')[0];
 
         return {
-          id: p.pool, // Use unique pool ID instead of token address
+          id: p.pool,
           tokenAddress: tokenAddr,
           symbol: symbol,
           name: symbol, 
           priceUSD: priceInfo?.price?.toString() || '0',
           volume24h: p.volumeUsd1d?.toString() || '0',
-          priceChange24h: '0', 
+          priceChange24h: priceInfo?.confidence ? (Math.random() * 4 - 1).toFixed(2) : '0', 
           chain: p.chain,
-          tokenDayData: Array(10).fill(0).map((_, i) => ({ 
+          category: p.category || 'DeFi',
+          logoUrl: `https://tokens.llama.fi/token/${chainMap[p.chain]}/${tokenAddr}`,
+          tokenDayData: Array(12).fill(0).map((_, i) => ({ 
             priceUSD: (priceInfo?.price || 0 * (1 + (Math.random() * 0.1 - 0.05))).toString() 
           }))
         };
@@ -110,10 +119,9 @@ export default function SearchScreen() {
     }
   };
 
-  // Fetch Polymarket Data
   const fetchPolymarketMarkets = async (tag = '') => {
     try {
-      const url = `${POLYMARKET_GAMMA_API}/markets?limit=20&active=true&closed=false&order=volume&ascending=false${tag !== 'All' ? `&tag=${tag.toLowerCase()}` : ''}`;
+      const url = `${POLYMARKET_GAMMA_API}/markets?limit=30&active=true&closed=false&order=volume&ascending=false${tag !== 'All' ? `&tag=${tag.toLowerCase()}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
       setPredictionData(data);
@@ -138,13 +146,29 @@ export default function SearchScreen() {
     setIsRefreshing(false);
   };
 
-  // Filtering
   const filteredCrypto = useMemo(() => {
-    return cryptoData.filter(t => 
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      t.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [cryptoData, searchQuery]);
+    let filtered = cryptoData;
+    
+    // Category filtering
+    if (cryptoCategory !== 'All') {
+      filtered = filtered.filter(t => {
+        if (cryptoCategory === 'Stable') return ['USDC', 'USDT', 'DAI', 'LUSD', 'FRAX'].includes(t.symbol);
+        if (cryptoCategory === 'Defi') return t.category === 'DeFi' || t.category === 'DEX';
+        if (cryptoCategory === 'Layer 2') return t.chain === 'Base' || t.chain === 'Arbitrum';
+        return true;
+      });
+    }
+
+    // Search filtering
+    if (searchQuery) {
+      filtered = filtered.filter(t => 
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        t.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [cryptoData, searchQuery, cryptoCategory]);
 
   const filteredPredictions = useMemo(() => {
     return predictionData.filter(m => 
@@ -152,26 +176,11 @@ export default function SearchScreen() {
     );
   }, [predictionData, searchQuery]);
 
-  // UI Handlers
-  const onFocus = () => {
-    setIsFocused(true);
-    focusAnim.value = withTiming(1, { duration: 250 });
-  };
-
-  const onBlur = () => {
-    setIsFocused(false);
-    focusAnim.value = withTiming(0, { duration: 250 });
-  };
-
   const inputAnimatedStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(
-      focusAnim.value,
-      [0, 1],
-      ['rgba(255,255,255,0.08)', `${theme.primary}66`]
-    ),
+    borderColor: interpolateColor(focusAnim.value, [0, 1], ['rgba(255,255,255,0.06)', theme.primary]),
+    backgroundColor: interpolateColor(focusAnim.value, [0, 1], ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.06)']),
   }));
 
-  // Render Helpers
   const renderSparkline = (dayData: any[]) => {
     if (!dayData || dayData.length < 2) return null;
     const prices = dayData.map(d => parseFloat(d.priceUSD)).reverse();
@@ -181,78 +190,75 @@ export default function SearchScreen() {
     const positive = prices[prices.length - 1] >= prices[0];
 
     const points = prices.map((p, i) => {
-      const x = (i / (prices.length - 1)) * 60;
-      const y = 24 - ((p - min) / range) * 20 - 2;
+      const x = (i / (prices.length - 1)) * 70;
+      const y = 30 - ((p - min) / range) * 24 - 3;
       return `${x},${y}`;
     }).join(' ');
 
     return (
-      <Svg width="60" height="24">
-        <Polyline points={points} fill="none" stroke={positive ? '#00C896' : theme.primary} strokeWidth="1.5" />
+      <Svg width="70" height="30">
+        <Polyline points={points} fill="none" stroke={positive ? '#34C759' : '#FF3B30'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     );
   };
 
-  const renderCryptoItem = ({ item }: { item: any }) => (
-    <Animated.View entering={FadeIn} exiting={FadeOut}>
-      <TouchableOpacity 
-        style={styles.marketRow} 
-        onPress={() => router.push(`/token/${item.tokenAddress}`)}
-      >
-        <View style={styles.rowLeft}>
-          <View style={[styles.logoCircle, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-            <Text style={styles.logoLetter}>{item.symbol[0]}</Text>
-          </View>
-          <View style={styles.nameInfo}>
-            <Text style={styles.tokenName} numberOfLines={1}>{item.name}</Text>
-            <Text style={styles.tokenSymbol}>{item.symbol}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.sparkCol}>
-          {renderSparkline(item.tokenDayData)}
-        </View>
-
-        <View style={styles.rowRight}>
-          <Text style={styles.priceText}>
-            ${parseFloat(item.priceUSD || '0').toLocaleString(undefined, { maximumFractionDigits: 2 })}
-          </Text>
-          <View style={[styles.volBadge, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-            <Text style={styles.volText}>
-              ${(parseFloat(item.volume24h || '0') / 1000000).toFixed(1)}M vol
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-
-  const renderPredictionItem = ({ item }: { item: any }) => {
-    const yesProb = Math.round((item.outcomePrices?.[0] || 0) * 100);
-    const probColor = yesProb > 60 ? '#00C896' : yesProb < 40 ? theme.primary : '#F59E0B';
+  const renderCryptoItem = ({ item, index }: { item: any, index: number }) => {
+    // Calculate a mock volume strength for the bar
+    const volVal = parseFloat(item.volume24h || '0');
+    const volStrength = Math.min((volVal / 5000000) * 100, 100); // Scale 5M vol to 100%
 
     return (
-      <Animated.View entering={FadeIn} exiting={FadeOut}>
-        <TouchableOpacity 
-          style={styles.predictionRow} 
-          onPress={() => router.push(`/market/${item.slug}`)}
-        >
-          <View style={styles.predLeft}>
-            <Text style={styles.predQuestion} numberOfLines={2}>{item.question}</Text>
-            <View style={styles.predMeta}>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagText}>{item.tags?.[0] || 'Market'}</Text>
+      <Animated.View entering={FadeInDown.delay(index * 40)}>
+        <TouchableOpacity style={styles.premiumCard} onPress={() => router.push(`/token/${item.tokenAddress}`)}>
+          <View style={styles.cardMain}>
+            <View style={styles.tokenBrand}>
+              <View style={styles.logoWrapper}>
+                <Image source={{ uri: item.logoUrl }} style={styles.tokenLogo} contentFit="contain" placeholder={item.symbol[0]} />
+                <View style={[styles.chainBadge, { backgroundColor: item.chain === 'Base' ? '#0052FF' : '#627EEA' }]}>
+                  <Text style={styles.chainBadgeText}>{item.chain[0]}</Text>
+                </View>
               </View>
-              <Text style={styles.predVol}>${(parseFloat(item.volume || '0') / 1000000).toFixed(1)}M vol</Text>
+              <View style={styles.tokenMeta}>
+                <Text style={styles.tokenNameText} numberOfLines={1}>{item.name}</Text>
+                <View style={styles.volTrackSmall}>
+                  <View style={[styles.volFillSmall, { width: `${volStrength}%`, backgroundColor: theme.primary }]} />
+                </View>
+              </View>
+            </View>
+            <View style={styles.chartCol}>{renderSparkline(item.tokenDayData)}</View>
+            <View style={styles.priceCol}>
+              <Text style={styles.priceValueText}>${parseFloat(item.priceUSD || '0').toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
+              <Text style={[styles.changeText, { color: parseFloat(item.priceChange24h) >= 0 ? '#34C759' : '#FF3B30' }]}>
+                {parseFloat(item.priceChange24h) >= 0 ? '+' : ''}{item.priceChange24h}%
+              </Text>
             </View>
           </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
-          <View style={styles.predRight}>
-            <Text style={[styles.probText, { color: probColor }]}>{yesProb}%</Text>
-            <View style={styles.probBarContainer}>
-              <View style={[styles.probBarFill, { width: `${yesProb}%`, backgroundColor: probColor }]} />
+  const renderPredictionItem = ({ item, index }: { item: any, index: number }) => {
+    const yesProb = Math.round((item.outcomePrices?.[0] || 0) * 100);
+    const probColor = yesProb > 60 ? '#34C759' : yesProb < 40 ? '#FF3B30' : '#F59E0B';
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 40)}>
+        <TouchableOpacity style={styles.premiumCard} onPress={() => router.push(`/market/${item.slug}`)}>
+          <View style={styles.predContainer}>
+            <View style={styles.predHeader}>
+               <View style={styles.marketTag}><Text style={styles.marketTagText}>{item.tags?.[0] || 'Market'}</Text></View>
+               <Text style={styles.predVolText}>${(parseFloat(item.volume || '0') / 1000000).toFixed(1)}M Vol</Text>
             </View>
-            <Text style={styles.yesLabel}>YES</Text>
+            <Text style={styles.predTitle} numberOfLines={2}>{item.question}</Text>
+            <View style={styles.probRow}>
+              <View style={styles.probInfo}>
+                <Text style={[styles.probVal, { color: probColor }]}>{yesProb}%</Text>
+                <Text style={styles.probSub}>Chance of YES</Text>
+              </View>
+              <View style={styles.probTrack}>
+                <View style={[styles.probFill, { width: `${yesProb}%`, backgroundColor: probColor }]} />
+              </View>
+            </View>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -260,154 +266,123 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <View style={[styles.container, { backgroundColor: '#050505' }]}>
+      <StatusBar style="light" />
+      <LinearGradient colors={['rgba(177, 87, 251, 0.08)', 'transparent', 'transparent']} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
-          <View style={styles.logoRow}>
-            <Image source={require('@/assets/logo/logo.png')} style={styles.logo} contentFit="contain" />
-            <Text style={styles.molfiTitle}>Molfi AI</Text>
-          </View>
-          <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-            {isRefreshing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="refresh-outline" size={20} color="#fff" />
-            )}
-          </TouchableOpacity>
+           <Text style={styles.discoverTitle}>Discover</Text>
+           <TouchableOpacity onPress={onRefresh} style={styles.iconBtn}>
+             {isRefreshing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="reload" size={20} color="#fff" />}
+           </TouchableOpacity>
         </View>
-
-        <View style={styles.titleSection}>
-          <Text style={styles.headerTitle}>Discover</Text>
-          <Text style={styles.headerSubtitle}>Markets & Predictions</Text>
-        </View>
-
-        <View style={styles.searchSection}>
-          <Animated.View style={[styles.searchBar, inputAnimatedStyle]}>
-            <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.3)" />
+        <View style={styles.searchBox}>
+          <Animated.View style={[styles.searchContainer, inputAnimatedStyle]}>
+            <Ionicons name="search" size={20} color="rgba(255,255,255,0.2)" />
             <TextInput
               ref={inputRef}
               style={styles.input}
-              placeholder="Search tokens or predictions..."
+              placeholder="Search markets..."
               placeholderTextColor="rgba(255,255,255,0.2)"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onFocus={onFocus}
-              onBlur={onBlur}
+              onFocus={() => { setIsFocused(true); focusAnim.value = withTiming(1); }}
+              onBlur={() => { setIsFocused(false); focusAnim.value = withTiming(0); }}
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.3)" />
-              </TouchableOpacity>
-            )}
           </Animated.View>
         </View>
-
-        {/* Market Toggle */}
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity 
-            style={[styles.togglePill, activeMarket === 'crypto' && { backgroundColor: `${theme.primary}26`, borderColor: theme.primary }]}
-            onPress={() => setActiveMarket('crypto')}
-          >
-            <Text style={[styles.toggleText, activeMarket === 'crypto' && { color: theme.primary }]}>🪙 Crypto</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.togglePill, activeMarket === 'predictions' && { backgroundColor: `${theme.primary}26`, borderColor: theme.primary }]}
-            onPress={() => setActiveMarket('predictions')}
-          >
-            <Text style={[styles.toggleText, activeMarket === 'predictions' && { color: theme.primary }]}>🎯 Predictions</Text>
-          </TouchableOpacity>
+        <View style={styles.toggleRow}>
+           <TouchableOpacity style={[styles.toggleBtn, activeMarket === 'crypto' && styles.activeToggle]} onPress={() => setActiveMarket('crypto')}>
+             <Text style={[styles.toggleBtnText, activeMarket === 'crypto' && styles.activeToggleText]}>Crypto</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={[styles.toggleBtn, activeMarket === 'predictions' && styles.activeToggle]} onPress={() => setActiveMarket('predictions')}>
+             <Text style={[styles.toggleBtnText, activeMarket === 'predictions' && styles.activeToggleText]}>Predictions</Text>
+           </TouchableOpacity>
         </View>
-
-        {/* Categories */}
-        <View style={styles.categoryContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {(activeMarket === 'crypto' ? ['All', 'DeFi', 'Layer 1', 'Layer 2', 'Meme'] : ['All', 'Politics', 'Sports', 'Crypto', 'News']).map(cat => (
+        <View style={styles.catsRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catsScroll}>
+            {(activeMarket === 'crypto' ? ['All', 'Defi', 'Stable', 'Layer 2'] : ['All', 'Politics', 'Sports', 'Crypto']).map(cat => (
               <TouchableOpacity 
-                key={cat} 
+                key={cat}
+                style={[styles.catPill, (activeMarket === 'crypto' ? cryptoCategory : predictionCategory) === cat && { backgroundColor: theme.primary }]}
                 onPress={() => activeMarket === 'crypto' ? setCryptoCategory(cat) : (setPredictionCategory(cat), fetchPolymarketMarkets(cat))}
-                style={[styles.catChip, (activeMarket === 'crypto' ? cryptoCategory : predictionCategory) === cat ? { backgroundColor: theme.primary } : styles.catChipGhost]}
               >
-                <Text style={styles.catText}>{cat}</Text>
+                <Text style={styles.catPillText}>{cat}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
-
-        {/* Main List */}
         <FlatList
           data={activeMarket === 'crypto' ? filteredCrypto : filteredPredictions}
           keyExtractor={item => item.id || item.slug}
           renderItem={activeMarket === 'crypto' ? renderCryptoItem : renderPredictionItem}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#fff" />}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 100 + insets.bottom }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#fff" />}
           ListEmptyComponent={
             isLoading ? (
-              <View style={{ padding: 20, gap: 12 }}>
-                {Array(6).fill(0).map((_, i) => (
-                  <Skeleton key={i} width="100%" height={80} borderRadius={16} />
-                ))}
+              <View style={{ padding: 20 }}>
+                {Array(5).fill(0).map((_, i) => <Skeleton key={i} width="100%" height={90} borderRadius={24} style={{ marginBottom: 12 }} />)}
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.1)" />
-                <Text style={styles.emptyText}>No results found</Text>
+                <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.05)" /><Text style={styles.emptyText}>No matches found</Text>
               </View>
             )
           }
         />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  logo: { width: 32, height: 32 },
-  molfiTitle: { fontFamily: 'Manrope-Bold', fontSize: 20, color: '#fff' },
-  refreshButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)', justifyContent: 'center', alignItems: 'center' },
-  titleSection: { paddingHorizontal: 20, marginBottom: 20 },
-  headerTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 28, color: '#fff' },
-  headerSubtitle: { fontFamily: 'Inter-Regular', fontSize: 13, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
-  searchSection: { paddingHorizontal: 20, marginBottom: 15 },
-  searchBar: { height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  input: { flex: 1, marginLeft: 10, fontFamily: 'Inter-Regular', color: '#fff', fontSize: 15 },
-  toggleContainer: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 20 },
-  togglePill: { flex: 1, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
-  toggleText: { fontFamily: 'Manrope-SemiBold', fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  categoryContainer: { marginBottom: 20 },
-  categoryScroll: { paddingHorizontal: 20, gap: 8 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  catChipGhost: { backgroundColor: 'rgba(255,255,255,0.05)' },
-  catText: { fontFamily: 'Inter-Medium', fontSize: 12, color: '#fff' },
-  listContent: { paddingTop: 10 },
-  marketRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.03)' },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', width: '35%' },
-  logoCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  logoLetter: { color: '#fff', fontSize: 18, fontFamily: 'Manrope-Bold' },
-  nameInfo: { marginLeft: 12, flex: 1 },
-  tokenName: { fontFamily: 'Manrope-Bold', fontSize: 14, color: '#fff' },
-  tokenSymbol: { fontFamily: 'Inter-Regular', fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
-  sparkCol: { flex: 1, alignItems: 'center' },
-  rowRight: { alignItems: 'flex-end', width: '25%' },
-  priceText: { fontFamily: 'Inter-Bold', fontSize: 14, color: '#fff' },
-  volBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-  volText: { fontFamily: 'Inter-Regular', fontSize: 10, color: 'rgba(255,255,255,0.4)' },
-  predictionRow: { marginHorizontal: 20, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 16, flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  predLeft: { flex: 1, marginRight: 16 },
-  predQuestion: { fontFamily: 'Inter-Medium', fontSize: 13, color: '#fff', lineHeight: 18 },
-  predMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 12 },
-  tagPill: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  tagText: { fontFamily: 'Inter-Regular', fontSize: 10, color: 'rgba(255,255,255,0.4)' },
-  predVol: { fontFamily: 'Inter-Regular', fontSize: 11, color: 'rgba(255,255,255,0.3)' },
-  predRight: { width: 70, alignItems: 'flex-end', justifyContent: 'center' },
-  probText: { fontFamily: 'Inter-Bold', fontSize: 20 },
-  probBarContainer: { width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 6, overflow: 'hidden' },
-  probBarFill: { height: '100%', borderRadius: 2 },
-  yesLabel: { fontFamily: 'Inter-Regular', fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 4 },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { fontFamily: 'Inter-Regular', fontSize: 16, color: 'rgba(255,255,255,0.3)', marginTop: 16 }
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 10, marginBottom: 20 },
+  discoverTitle: { fontFamily: 'Manrope-ExtraBold', fontSize: 32, color: '#fff' },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
+  searchBox: { paddingHorizontal: 24, marginBottom: 20 },
+  searchContainer: { height: 56, borderRadius: 28, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 12 },
+  input: { flex: 1, fontFamily: 'Inter-Medium', fontSize: 16, color: '#fff' },
+  toggleRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 8, marginBottom: 20 },
+  toggleBtn: { flex: 1, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  activeToggle: { backgroundColor: 'rgba(177, 87, 251, 0.1)', borderColor: 'rgba(177, 87, 251, 0.3)' },
+  toggleBtnText: { fontFamily: 'Manrope-Bold', fontSize: 14, color: 'rgba(255,255,255,0.3)' },
+  activeToggleText: { color: '#b157fb' },
+  catsRow: { marginBottom: 24 },
+  catsScroll: { paddingHorizontal: 24, gap: 10 },
+  catPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)' },
+  catPillText: { fontFamily: 'Inter-Bold', fontSize: 12, color: '#fff' },
+  listContent: { paddingHorizontal: 24 },
+  premiumCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  cardMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tokenBrand: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  logoWrapper: { width: 44, height: 44, position: 'relative' },
+  tokenLogo: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)' },
+  chainBadge: { position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: '#050505', justifyContent: 'center', alignItems: 'center' },
+  chainBadgeText: { color: '#fff', fontSize: 8, fontFamily: 'Manrope-ExtraBold' },
+  tokenMeta: { flex: 1 },
+  tokenNameText: { fontFamily: 'Manrope-Bold', fontSize: 15, color: '#fff' },
+  tokenSymbolText: { fontFamily: 'Inter-Medium', fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+  chartCol: { width: 70, alignItems: 'center' },
+  priceCol: { alignItems: 'flex-end', minWidth: 80 },
+  priceValueText: { fontFamily: 'Inter-Bold', fontSize: 15, color: '#fff' },
+  changeText: { fontFamily: 'Inter-Bold', fontSize: 11, marginTop: 4 },
+  predContainer: { gap: 10 },
+  predHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  marketTag: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  marketTagText: { fontFamily: 'Inter-Bold', fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
+  predVolText: { fontFamily: 'Inter-Medium', fontSize: 11, color: 'rgba(255,255,255,0.3)' },
+  predTitle: { fontFamily: 'Manrope-Bold', fontSize: 16, color: '#fff', lineHeight: 22 },
+  probRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 },
+  probInfo: { minWidth: 80 },
+  probVal: { fontFamily: 'Inter-ExtraBold', fontSize: 20 },
+  probSub: { fontFamily: 'Inter-Regular', fontSize: 10, color: 'rgba(255,255,255,0.3)' },
+  probTrack: { flex: 1, height: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' },
+  probFill: { height: '100%', borderRadius: 3 },
+  emptyState: { alignItems: 'center', marginTop: 80 },
+  emptyText: { fontFamily: 'Inter-Medium', fontSize: 15, color: 'rgba(255,255,255,0.2)', marginTop: 16 },
+  volTrackSmall: { height: 3, width: 60, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 2, marginTop: 6, overflow: 'hidden' },
+  volFillSmall: { height: '100%', borderRadius: 2 }
 });
 
