@@ -181,17 +181,17 @@ export default function ChatScreen() {
           body: JSON.stringify({
             walletAddress: address,
             role: 'assistant',
-            content: cleanText,
-            intent: intent,
-            intentPayload: intent?.payload || null
+            content: aiData.content,
+            intent: aiData.intent,
+            intentPayload: aiData.intentPayload
           })
         });
       }
 
       setMessages(prev => [assistantMessage, ...prev]);
 
-      if (intent?.type === 'PREFERENCE_UPDATE') {
-        updatePreferences(intent.payload);
+      if (aiData.intent === 'PREFERENCE_UPDATE') {
+        updatePreferences(aiData.intentPayload);
       }
 
     } catch (e) {
@@ -232,7 +232,7 @@ export default function ChatScreen() {
             <Ionicons name="chevron-back" size={22} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.logoRow}>
-            <Text style={[styles.logoText, { color: theme.text }]}>Molfi Chat</Text>
+            <Text style={[styles.logoText, { color: theme.text }]}>Molfi AI</Text>
           </View>
           
           <View style={styles.headerIcons}>
@@ -269,7 +269,7 @@ export default function ChatScreen() {
                   onPress={() => updatePreferences({ defaultChain: chain.id })}
                 >
                   <Image source={{ uri: chain.logo }} style={styles.chainLogo} />
-                  <Text style={[styles.chainName, { color: isSelected ? '#FFF' : theme.text }]}>{chain.name}</Text>
+                  <Text style={[styles.chainName, { color: isSelected ? '#000' : theme.text }]}>{chain.name}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -282,26 +282,42 @@ export default function ChatScreen() {
               {/* Main Greeting */}
               <View style={styles.greetingContainer}>
                 <Text style={[styles.greetingTitle, { color: theme.text }]}>GM,</Text>
-                <Text style={[styles.greetingSubtitle, { color: theme.textMuted }]}>How are we pumping that bag today?</Text>
+                <Text style={[styles.greetingSubtitle, { color: theme.textMuted }]}>Ready to deploy the swarm?</Text>
               </View>
 
-              {/* Suggestion Cards */}
-              <View style={styles.cardGrid}>
-                <TouchableOpacity style={[styles.card, { backgroundColor: theme.card }]} onPress={() => handleSend("What are the hottest tokens right now?")}>
-                  <View style={styles.cardIconHeader}>
-                    <Ionicons name="flame-outline" size={18} color={theme.text} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>Hot tokens</Text>
-                  </View>
-                  <Text style={[styles.cardDesc, { color: theme.textMuted }]}>Trending and most hyped assets right now</Text>
-                </TouchableOpacity>
+              {/* Suggestion Grid */}
+              <View style={styles.templateGrid}>
+                <SuggestionCard 
+                  title="Swap" 
+                  desc="0.01 ETH to USDC" 
+                  icon="swap-horizontal"
+                  onPress={() => handleSend("Swap 0.01 ETH to USDC on Base")} 
+                />
+                <SuggestionCard 
+                  title="Send" 
+                  desc="10 USDC to ahmed.eth" 
+                  icon="send-outline"
+                  onPress={() => handleSend("Send 10 USDC to ahmed.eth")} 
+                />
+                <SuggestionCard 
+                  title="Markets" 
+                  desc="Fetch trending markets" 
+                  icon="trending-up"
+                  onPress={() => handleSend("fetch polymarket new markets")} 
+                />
+                <SuggestionCard 
+                  title="KeeperHub" 
+                  desc="Supply 1 ETH to Aave" 
+                  icon="flash"
+                  onPress={() => handleSend("Supply 1 ETH to Aave")} 
+                />
+              </View>
 
-                <TouchableOpacity style={[styles.card, { backgroundColor: theme.card }]} onPress={() => handleSend("Show my performance")}>
-                  <View style={styles.cardIconHeader}>
-                    <Ionicons name="stats-chart-outline" size={18} color={theme.text} />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>My Performance</Text>
-                  </View>
-                  <Text style={[styles.cardDesc, { color: theme.textMuted }]}>Track your growth and portfolio over a week</Text>
-                </TouchableOpacity>
+              <View style={[styles.capabilityCard, { backgroundColor: theme.card }]}>
+                <Text style={styles.capabilityTag}>AGENT CAPABILITIES</Text>
+                <CapabilityRow icon="search" label="Autonomous Research" desc="Crawl web for market alpha" />
+                <CapabilityRow icon="layers" label="Multi-Protocol DeFi" desc="Aave, Uniswap, Safe, Compound" />
+                <CapabilityRow icon="people" label="Swarm Intelligence" desc="Multi-agent consensus analysis" />
               </View>
             </ScrollView>
           ) : (
@@ -384,6 +400,38 @@ export default function ChatScreen() {
   );
 }
 
+function SuggestionCard({ title, desc, icon, onPress }: { title: string, desc: string, icon: any, onPress: () => void }) {
+  const colorScheme = useColorScheme() ?? 'dark';
+  const theme = Colors[colorScheme];
+  return (
+    <TouchableOpacity style={[styles.templateCard, { backgroundColor: theme.card }]} onPress={onPress}>
+      <View style={styles.templateIconContainer}>
+        <Ionicons name={icon} size={18} color={theme.primary} />
+      </View>
+      <View>
+        <Text style={[styles.templateTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.templateDesc, { color: theme.textMuted }]} numberOfLines={1}>{desc}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function CapabilityRow({ icon, label, desc }: { icon: any, label: string, desc: string }) {
+  const colorScheme = useColorScheme() ?? 'dark';
+  const theme = Colors[colorScheme];
+  return (
+    <View style={styles.capabilityRow}>
+      <View style={[styles.capabilityIcon, { backgroundColor: 'rgba(255,255,255,0.03)' }]}>
+        <Ionicons name={icon} size={14} color={theme.primary} />
+      </View>
+      <View>
+        <Text style={[styles.capabilityLabel, { color: theme.text }]}>{label}</Text>
+        <Text style={[styles.capabilityDesc, { color: theme.textMuted }]}>{desc}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -463,31 +511,77 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 40,
   },
-  cardGrid: {
+  templateGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 40,
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
   },
-  card: {
-    flex: 1,
-    borderRadius: 20,
+  templateCard: {
+    width: (width - 50) / 2,
+    borderRadius: 24,
     padding: 16,
-    height: 120,
+    height: 110,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  cardIconHeader: {
+  templateIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  templateTitle: {
+    fontFamily: 'Manrope-ExtraBold',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  templateDesc: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  capabilityCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 100,
+  },
+  capabilityTag: {
+    fontFamily: 'Manrope-ExtraBold',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 2,
+    marginBottom: 16,
+  },
+  capabilityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    marginBottom: 16,
   },
-  cardTitle: {
+  capabilityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  capabilityLabel: {
     fontFamily: 'Manrope-Bold',
-    fontSize: 16,
-  },
-  cardDesc: {
-    fontFamily: 'Inter-Regular',
     fontSize: 13,
-    lineHeight: 18,
+    marginBottom: 2,
+  },
+  capabilityDesc: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   inputContainer: {
     paddingHorizontal: 20,
